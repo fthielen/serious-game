@@ -1,0 +1,220 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+  ignorenonframetext,
+]{beamer}
+\usepackage{pgfpages}
+\setbeamertemplate{caption}[numbered]
+\setbeamertemplate{caption label separator}{: }
+\setbeamercolor{caption name}{fg=normal text.fg}
+\beamertemplatenavigationsymbolsempty
+% Prevent slide breaks in the middle of a paragraph
+\widowpenalties 1 10000
+\raggedbottom
+\setbeamertemplate{part page}{
+  \centering
+  \begin{beamercolorbox}[sep=16pt,center]{part title}
+    \usebeamerfont{part title}\insertpart\par
+  \end{beamercolorbox}
+}
+\setbeamertemplate{section page}{
+  \centering
+  \begin{beamercolorbox}[sep=12pt,center]{part title}
+    \usebeamerfont{section title}\insertsection\par
+  \end{beamercolorbox}
+}
+\setbeamertemplate{subsection page}{
+  \centering
+  \begin{beamercolorbox}[sep=8pt,center]{part title}
+    \usebeamerfont{subsection title}\insertsubsection\par
+  \end{beamercolorbox}
+}
+\AtBeginPart{
+  \frame{\partpage}
+}
+\AtBeginSection{
+  \ifbibliography
+  \else
+    \frame{\sectionpage}
+  \fi
+}
+\AtBeginSubsection{
+  \frame{\subsectionpage}
+}
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{ifxetex,ifluatex}
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={Untitled},
+  pdfauthor={Frederick},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\newif\ifbibliography
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\ifluatex
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+
+\title{Untitled}
+\author{Frederick}
+\date{10/27/2021}
+
+\begin{document}
+\frame{\titlepage}
+
+\begin{frame}{Share your experience}
+\protect\hypertarget{share-your-experience}{}
+One of each group, please share your experience:
+
+\begin{itemize}
+\tightlist
+\item
+  Was the negotiaton-power between GOV and PHARMA balanced?
+\item
+  Was it difficult to derive an agreement?
+\item
+  What were the main points of discussion?
+\item
+  How did you perceive time (pressure)?
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Negotiation results}
+\protect\hypertarget{negotiation-results}{}
+\begin{itemize}
+\tightlist
+\item
+  How often did GOV stay whithin budget?
+\item
+  Were QALYs lost (i.e.~crowding out)?
+\item
+  How often and how many patients could not be treated?
+\item
+  What was the average price per patient and was this below the list
+  price?
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Results (1/): Overspent budget}
+\protect\hypertarget{results-1-overspent-budget}{}
+\begin{table}[H]
+
+\caption{\label{tab:res1}Number of times budget was overspent by working group and group}
+\centering
+\begin{tabular}[t]{rlr}
+\toprule
+Working group & Group & Number of times budget was overspent\\
+\midrule
+\cellcolor{gray!6}{1} & \cellcolor{gray!6}{A} & \cellcolor{gray!6}{1}\\
+1 & B & 1\\
+\cellcolor{gray!6}{1} & \cellcolor{gray!6}{C} & \cellcolor{gray!6}{2}\\
+2 & B & 1\\
+\cellcolor{gray!6}{2} & \cellcolor{gray!6}{D} & \cellcolor{gray!6}{1}\\
+\bottomrule
+\end{tabular}
+\end{table}
+\end{frame}
+
+\begin{frame}{Results (2/): Crowding-out}
+\protect\hypertarget{results-2-crowding-out}{}
+\begin{table}[H]
+
+\caption{\label{tab:res2}Crowding-out by working group and group}
+\centering
+\begin{tabular}[t]{rlrr}
+\toprule
+Working group & Group & Round & Number of QALYs lost\\
+\midrule
+\cellcolor{gray!6}{1} & \cellcolor{gray!6}{B} & \cellcolor{gray!6}{2} & \cellcolor{gray!6}{-400.00}\\
+2 & D & 2 & -395.00\\
+\cellcolor{gray!6}{1} & \cellcolor{gray!6}{C} & \cellcolor{gray!6}{1} & \cellcolor{gray!6}{-359.38}\\
+1 & C & 2 & -390.00\\
+\cellcolor{gray!6}{1} & \cellcolor{gray!6}{A} & \cellcolor{gray!6}{1} & \cellcolor{gray!6}{-100.00}\\
+2 & B & 1 & -200.00\\
+\bottomrule
+\end{tabular}
+\end{table}
+\end{frame}
+
+\begin{frame}{Results (2/): Untreated patients}
+\protect\hypertarget{results-2-untreated-patients}{}
+\begin{table}[H]
+
+\caption{\label{tab:res3}Number of patients without treatment per working group, group, and round}
+\centering
+\resizebox{\linewidth}{!}{
+\begin{tabular}[t]{rlrr}
+\toprule
+Working group & Group & Round & Number of patient without treatment\\
+\midrule
+\cellcolor{gray!6}{1} & \cellcolor{gray!6}{B} & \cellcolor{gray!6}{3} & \cellcolor{gray!6}{500}\\
+2 & D & 3 & 500\\
+\cellcolor{gray!6}{1} & \cellcolor{gray!6}{C} & \cellcolor{gray!6}{2} & \cellcolor{gray!6}{20}\\
+1 & C & 3 & 500\\
+\cellcolor{gray!6}{1} & \cellcolor{gray!6}{A} & \cellcolor{gray!6}{3} & \cellcolor{gray!6}{500}\\
+2 & C & 1 & 100\\
+\cellcolor{gray!6}{2} & \cellcolor{gray!6}{C} & \cellcolor{gray!6}{3} & \cellcolor{gray!6}{500}\\
+1 & D & 3 & 500\\
+\cellcolor{gray!6}{2} & \cellcolor{gray!6}{B} & \cellcolor{gray!6}{3} & \cellcolor{gray!6}{500}\\
+2 & A & 3 & 500\\
+\bottomrule
+\end{tabular}}
+\end{table}
+\end{frame}
+
+\begin{frame}{Results (2/)}
+\protect\hypertarget{results-2}{}
+``What was the average price per treatment per round?''
+
+\begin{table}[H]
+
+\caption{\label{tab:res4}Average price per treatment, per round, across groups and working groups}
+\centering
+\resizebox{\linewidth}{!}{
+\begin{tabular}[t]{rrrrr}
+\toprule
+Round & Mean & Min & Max & Std. dev.\\
+\midrule
+\cellcolor{gray!6}{1} & \cellcolor{gray!6}{104,994} & \cellcolor{gray!6}{79,900} & \cellcolor{gray!6}{125,000} & \cellcolor{gray!6}{13,913}\\
+2 & 44,112 & 0 & 103,125 & 49,955\\
+\cellcolor{gray!6}{3} & \cellcolor{gray!6}{NaN} & \cellcolor{gray!6}{Inf} & \cellcolor{gray!6}{-Inf} & \cellcolor{gray!6}{NA}\\
+\bottomrule
+\end{tabular}}
+\end{table}
+\end{frame}
+
+\end{document}

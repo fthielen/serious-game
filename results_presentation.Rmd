@@ -1,0 +1,135 @@
+---
+title: "Negotiation results"
+author: "Marc Koopmanschap & Frederick Thielen"
+date: "10/27/2021"
+output: slidy_presentation
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+source(here::here("calculations.R"))
+
+library("tatooheen")
+library("kableExtra")
+library("tidyverse")
+
+filter_groups <- c("1 (Tutor: Frederick)",
+                   "2 (Tutor: Renaud)",
+                   "3 (Tutor: Marc)")
+
+# filter_groups <- c("5 (Tutor: Frederick)",
+#                    "4 (Tutor: Renaud)",
+#                    "6 (Tutor: Marc)")
+
+res <- res %>% 
+  filter(wg %in% filter_groups)
+
+```
+
+## Share your experience
+
+One of each group, please share your experience:
+
+- Was the negotiaton-power between GOV and PHARMA balanced?
+- Was it difficult to derive an agreement?
+- What were the main points of discussion?
+- How did you perceive time (pressure)?
+
+
+## Negotiation results
+
+The subsequent slides show results of the following working groups:
+
+- `r filter_groups[1]`
+- `r filter_groups[2]`
+- `r filter_groups[3]`
+
+## Results (1/5): Overspent budget
+
+```{r res1, echo = FALSE, message=FALSE}
+res %>% 
+  filter(gov_balance < 0) %>% 
+  group_by(wg, gr) %>% 
+  summarise(n = n()) %>% 
+  fkbl(caption = "Number of times budget was overspent by working group and group",
+       col.names = c("Working group",
+                     "Group",
+                     "Number of times budget was overspent")) %>% 
+  fkbl_style()
+```
+
+## Results (2/5): Crowding-out
+
+```{r res2, echo = FALSE, message=FALSE}
+res %>%
+  filter(crowd_out < 0) %>%
+  select(wg, gr, round, crowd_out) %>% 
+  fkbl(caption = "Crowding-out by working group and group",
+       col.names = c("Working group",
+                     "Group",
+                     "Round",
+                     "Number of QALYs lost")) %>% 
+  fkbl_style()
+```
+
+## Results (3/5): Untreated patients
+
+```{r res3, echo = FALSE, message=FALSE}
+res %>%
+  filter(n_pat_notx > 0) %>%
+  select(wg, gr, round, n_pat_notx) %>%
+  fkbl(caption = "Number of patients without treatment per working group, group, and round",
+       col.names = c("Working group",
+                     "Group",
+                     "Round",
+                     "Number of patients without treatment")) %>% 
+  fkbl_style(scale = T)
+```
+
+## Results (4/5): Average price per patient
+
+```{r res4, echo = FALSE, message=FALSE, warning=F}
+res %>%
+  mutate(ppp = budget_impact / n_pat_tx) %>%
+  group_by(round) %>%
+  summarise(mean = mean(ppp, na.rm = T),
+            min = min(ppp, na.rm = T),
+            max = max(ppp, na.rm = T),
+            sd = sd(ppp, na.rm = T)) %>%
+  fkbl(digi = 0,
+    caption = "Average price per patient, per round, across groups and working groups",
+       col.names = c("Round",
+                     "Mean",
+                     "Min",
+                     "Max",
+                     "Std. dev.")) %>% 
+  fkbl_style(scale = TRUE)
+```
+
+## Results (5/5): Total points
+
+```{r res5, echo = FALSE, message=FALSE, warning=F}
+res %>%
+  select(wg, gr, round, gov_total, man_total) %>%
+  arrange(wg, gr, round) %>% 
+  fkbl(digi = 1,
+    caption = "Total points group and round",
+       col.names = c("Working group",
+                     "Group",
+                     "Round",
+                     "Total points: GOV",
+                     "Total points: PHARMA")) %>% 
+  fkbl_style(scale = TRUE)
+```
+
+
+```{r}
+# ggplot(data = dat_plot, aes(x = Points, y = Institution)) +
+#   geom_boxplot() +
+#   theme_bw() +
+#   facet_grid(round ~ gr) +
+#   ggtitle("Overall distribution of points by case")
+```
+
