@@ -1,0 +1,30 @@
+---
+title: "**ROUND2** <br> Confidential Information for HTD: QALY Adjustment for RCMD Treatment"
+subtitle: "Immediate Attention Required"
+format: 
+  html:
+    embed-resources: true
+---
+Dear Health Technology Developer Team,
+
+I am writing to inform you of an urgent matter related to the ongoing negotiations with the Healthcare Payer (HCP) for our new orphan drug treating rare chronic muscle disease (RCMD).
+
+## Revised QALYs
+New research, including a recently published Cost-Utility Analysis (CUA), has prompted a revision in the estimated health gains attributable to our treatment. Previously, we communicated that the treatment would provide 0.6 Quality-Adjusted Life Years (QALYs) per patient per year. **This has now been adjusted to 0.3 QALYs per patient per year.** The decrease is primarily due to more frequent adverse events, including auto-immune responses, observed in daily practice. This information is under embargo until the results are published in a peer-reviewed journal which might happen this or next year.
+
+## Implications for Negotiations
+Once published, this information is likely to affect both the perceived value of our drug and the negotiation process with the HCP. Given that QALYs are a key determinant in pricing discussions, this new information will require strategic realignment before entering the next round of negotiations.
+
+## Immediate Actions
+1.	Review and potentially amend your negotiation strategy in light of this information.
+2.	Re-calculate potential sales and shareholder expectations based on the revised QALY.
+
+## Next Steps
+Prepare for the next round of negotiations, considering that Benelux remains the first and only country contemplating reimbursement for our drug.
+Your immediate attention to this matter is crucial. Please ensure all team members are apprised of this update.
+
+Sincerely,
+
+ProfiGen Pharmaceuticals
+
+*Global office*

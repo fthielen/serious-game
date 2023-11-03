@@ -1,7 +1,7 @@
 ---
 title: "Negotiation results"
 author: "Frederick Thielen, Renaud Heine, Marc Koopmanschap"
-date: "10/27/2021"
+date: "`r Sys.Date()`"
 output: slidy_presentation
 editor_options: 
   chunk_output_type: console
@@ -15,16 +15,10 @@ library("tatooheen")
 library("kableExtra")
 library("tidyverse")
 
-# filter_groups <- c("1 (Tutor: Frederick)",
-#                    "2 (Tutor: Renaud)",
-#                    "3 (Tutor: Marc)")
-
-filter_groups <- c("5 (Tutor: Frederick)",
-                   "4 (Tutor: Renaud)",
-                   "6 (Tutor: Marc)")
-
-res <- res %>% 
-  filter(wg %in% filter_groups)
+# filter_groups <- c("1 (Tutor: Frederick)")
+# 
+# res <- res %>% 
+#   filter(wg %in% filter_groups)
 ```
 
 ## Share your experience
@@ -36,14 +30,6 @@ One of each group, please share your experience:
 - What were the main points of discussion?
 - How did you perceive time (pressure)?
 
-
-## Negotiation results
-
-The subsequent slides show results of the following working groups:
-
-- `r filter_groups[1]`
-- `r filter_groups[2]`
-- `r filter_groups[3]`
 
 ## Results (1/5): Overspent budget
 

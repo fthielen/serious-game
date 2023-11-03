@@ -1,0 +1,34 @@
+---
+title: "**ROUND3** <br> Confidential Information for HCP: Budget and QALY Adjustment for RCMD Treatment"
+subtitle: "Immediate Attention Required"
+format: 
+  html:
+    embed-resources: true
+---
+
+Dear Healthcare Payer Team,
+
+We have two significant updates that will impact our ongoing negotiations with the Health Technology Developer (HTD) regarding the new orphan drug for rare chronic muscle disease (RCMD).
+
+## Revised QALYs
+Firstly, a recently published Cost-Utility Analysis (CUA) has revised the estimated health gains from the drug. Initially set at 0.6 Quality-Adjusted Life Years (QALYs) per patient per year, this figure has now been adjusted to 0.3 QALYs. This is due to a higher incidence of adverse events, including auto-immune responses, that were not apparent during clinical trials.
+
+## Budget Decrease
+Secondly, due to unexpected financial constraints caused by a sudden influx of pandemics-related healthcare expenditures, the budget allocated for this specific treatment in Benelux is being reduced to €25,000,000 for the year.
+
+## Implications for Negotiations
+These updates have significant implications for our negotiation strategy. Reduced QALYs may lower the drug's perceived value, potentially facilitating more favourable financial arrangements. However, the reduced budget adds a layer of complexity that requires careful planning.
+
+## Immediate Actions
+1.	Re-evaluate your negotiation strategy in light of these developments.
+2.	Prioritize the most clinically vulnerable patient groups given the new constraints.
+3.	Consider the potential for partial treatment through academic hospitals at a reduced price point, as previously discussed.
+
+## Next Steps
+As you prepare for the next negotiation round, bear in mind that the HTD is likely re-strategising due to the new QALY information. Your nimbleness in these negotiations is essential, given our decreased budget and the updated health gain figures.
+
+Your prompt attention to these matters is crucial.
+
+Sincerely,
+
+*Financial negotiation support office*

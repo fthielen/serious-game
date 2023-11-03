@@ -1,7 +1,7 @@
 ---
 title: "Negotiation results"
-author: "Frederick Thielen, Renaud Heine, Marc Koopmanschap"
-date: "10/27/2021"
+author: "Frederick Thielen, Brenda Leeneman, Marc Koopmanschap"
+date: "`r Sys.Date()`"
 output: slidy_presentation
 editor_options: 
   chunk_output_type: console
@@ -15,37 +15,28 @@ library("tatooheen")
 library("kableExtra")
 library("tidyverse")
 
-# filter_groups <- c("1 (Tutor: Frederick)",
-#                    "2 (Tutor: Renaud)",
-#                    "3 (Tutor: Marc)")
+# filter_groups <- c("5 (Tutor: Frederick)")
+# 
+# filter_groups <- c("4 (Tutor: Brenda)")
+#filter_groups <- c("6 (Tutor: Marc)")
 
-filter_groups <- c("5 (Tutor: Frederick)",
-                   "4 (Tutor: Renaud)",
-                   "6 (Tutor: Marc)")
-
-res <- res %>% 
-  filter(wg %in% filter_groups)
+res <- res %>%
+  filter(wg %in% filter_groups #,
+         #gr == "A"
+         )
 ```
 
 ## Share your experience
 
 One of each group, please share your experience:
 
-- Was the negotiaton-power between GOV and PHARMA balanced?
+- Was the negotiation-power between GOV and PHARMA balanced?
 - Was it difficult to derive an agreement?
 - What were the main points of discussion?
 - How did you perceive time (pressure)?
 
 
-## Negotiation results
-
-The subsequent slides show results of the following working groups:
-
-- `r filter_groups[1]`
-- `r filter_groups[2]`
-- `r filter_groups[3]`
-
-## Results (1/5): Overspent budget
+## Results (1/6): Overspent budget
 
 ```{r res1, echo = FALSE, message=FALSE}
 res %>% 
@@ -59,7 +50,7 @@ res %>%
   fkbl_style()
 ```
 
-## Results (2/5): Crowding-out
+## Results (2/6): Crowding-out
 
 ```{r res2, echo = FALSE, message=FALSE}
 res %>%
@@ -73,7 +64,27 @@ res %>%
   fkbl_style()
 ```
 
-## Results (3/5): Untreated patients
+## Results (3/6): Average prices
+
+```{r res6, echo = FALSE, message=FALSE}
+res %>%
+  rowwise() %>% 
+  mutate(wght_price = weighted.mean(c(p1, p2, p3), c(n1, n2, n3)),
+         perc_from_list_p = wght_price / 150000,
+         av_disc_give = (1-perc_from_list_p) * 100) %>% 
+  select(wg, gr, round, wght_price, av_disc_give) %>% 
+  fkbl(caption = "(Weighted) average prices",
+       col.names = c("Working group",
+                     "Group",
+                     "Round",
+                     "Weighted average price",
+                     "Average discount to list price (150,000 Euro)")) %>% 
+  fkbl_style()
+```
+
+
+
+## Results (4/6): Untreated patients
 
 ```{r res3, echo = FALSE, message=FALSE}
 res %>%
@@ -87,7 +98,7 @@ res %>%
   fkbl_style(scale = T)
 ```
 
-## Results (4/5): Average price per patient
+## Results (5/6): Average price per patient
 
 ```{r res4, echo = FALSE, message=FALSE, warning=F}
 res %>%
@@ -107,7 +118,7 @@ res %>%
   fkbl_style(scale = TRUE)
 ```
 
-## Results (5/5): Total points
+## Results (6/6): Total points
 
 ```{r res5, echo = FALSE, message=FALSE, warning=F}
 res %>%

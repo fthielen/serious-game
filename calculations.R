@@ -1,11 +1,22 @@
+# Load libraries
+library("googlesheets4")
+library("lubridate")
 library("tidyverse")
-library(googlesheets4)
+# to collapse_rows the dev version of kableExtra is needed
+# devtools::install_github(repo="haozhu233/kableExtra", ref="a6af5c0")
+library("kableExtra")
+
+# Set global options
 options(scipen = 999,
         digits = 6)
 
+# Set Google sheet options
 g_sheet <- "1VgbqTeaP0L8h0WL-PMcGU9l7kWs2e1BVVYyeJmaEPlE"
 gs4_auth(email = "eshpm.serious.game@gmail.com")
 
+# Set filter for time (as of which responses will be used)
+
+game_date <- lubridate::dmy("06-11-2023")
 
 # df_res <- read_sheet(ss = g_sheet, sheet = "responses") %>% 
 #   filter(!is.na(wg)) %>% 
@@ -40,9 +51,11 @@ new_col_names <- c("time", "wg", "gr",
 
 df_res <- read_sheet(ss = g_sheet, sheet = "Form responses 1")
 names(df_res) <- new_col_names
-  
+
+
 df_res <- df_res %>%   
-  filter(!is.na(wg)) %>% 
+  filter(!is.na(wg),
+         time >= game_date) %>% 
   replace(is.na(.), 0) %>% 
   pivot_longer(cols = starts_with("r"),
                names_prefix = "r*",
@@ -105,8 +118,12 @@ res <- df_res %>%
                                  pts_lo = 0,
                                  pts_phi = 10,
                                  val_new = n_pat_tx),
-         pts_man_sales = pt_fun_lm(val_lo = n_pats * wtp,
-                                   val_hi = n_pats * list_price,
+         pts_man_sales = pt_fun_lm(val_lo = ifelse(round == 3,
+                                                   (n_pats - 150) * wtp - (150 * 40000),
+                                                   n_pats * wtp),
+                                   val_hi = ifelse(round == 3,
+                                                   (n_pats - 150) * list_price,
+                                                   n_pats * list_price),
                                    pts_lo = 0,
                                    pts_phi = 10,
                                    val_new = man_sales),
@@ -131,6 +148,8 @@ res <- df_res %>%
   data.frame()
 
 res
+
+#any(res$n_pat_tx > 500)
 
 
 # Analysis ----------------------------------------------------------------

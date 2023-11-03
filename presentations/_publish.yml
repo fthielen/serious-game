@@ -1,0 +1,4 @@
+- source: before_game.qmd
+  quarto-pub:
+    - id: 790709ff-fd7d-4b44-8880-88d8f58fbaf5
+      url: 'https://fthielen.quarto.pub/before_game'

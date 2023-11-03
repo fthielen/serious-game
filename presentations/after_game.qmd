@@ -1,11 +1,25 @@
 ---
-title: "Negotiation results"
-author: "Frederick Thielen, Renaud Heine, Marc Koopmanschap"
-date: "10/27/2021"
-output: slidy_presentation
+author: The HTA course team
+format:
+  revealjs:
+    theme: white
+    embed-resources: true
+    logo: signature2.png
+    css: logo.css
+    smaller: true
+    scrollable: true
+    df-print: paged
+editor: 
+  markdown: 
+    wrap: 72
 editor_options: 
   chunk_output_type: console
 ---
+## The HTA negotiation game: results {background-color="purple" background-opacity=0.6}
+
+<br> <br> <br> <br>
+
+### The HTA course team
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
@@ -15,35 +29,17 @@ library("tatooheen")
 library("kableExtra")
 library("tidyverse")
 
-# filter_groups <- c("1 (Tutor: Frederick)",
-#                    "2 (Tutor: Renaud)",
-#                    "3 (Tutor: Marc)")
-
-filter_groups <- c("5 (Tutor: Frederick)",
-                   "4 (Tutor: Renaud)",
-                   "6 (Tutor: Marc)")
-
-res <- res %>% 
-  filter(wg %in% filter_groups)
 ```
 
 ## Share your experience
 
 One of each group, please share your experience:
 
-- Was the negotiaton-power between GOV and PHARMA balanced?
+- Was the negotiaton-power between HCP and HTD balanced?
 - Was it difficult to derive an agreement?
 - What were the main points of discussion?
 - How did you perceive time (pressure)?
 
-
-## Negotiation results
-
-The subsequent slides show results of the following working groups:
-
-- `r filter_groups[1]`
-- `r filter_groups[2]`
-- `r filter_groups[3]`
 
 ## Results (1/5): Overspent budget
 
@@ -55,8 +51,9 @@ res %>%
   fkbl(caption = "Number of times budget was overspent by working group and group",
        col.names = c("Working group",
                      "Group",
-                     "Number of times budget was overspent")) %>% 
-  fkbl_style()
+                     "Number of times budget was overspent")) %>%
+  collapse_rows(columns = 1:2, valign = "top") %>% 
+  fkbl_style() 
 ```
 
 ## Results (2/5): Crowding-out
@@ -70,6 +67,7 @@ res %>%
                      "Group",
                      "Round",
                      "Number of QALYs lost")) %>% 
+  collapse_rows(columns = 1:2, valign = "top") %>% 
   fkbl_style()
 ```
 
@@ -84,6 +82,7 @@ res %>%
                      "Group",
                      "Round",
                      "Number of patients without treatment")) %>% 
+  collapse_rows(columns = 1:2, valign = "top") %>% 
   fkbl_style(scale = T)
 ```
 
@@ -104,6 +103,7 @@ res %>%
                      "Min",
                      "Max",
                      "Std. dev.")) %>% 
+  collapse_rows(columns = 1:2, valign = "top") %>% 
   fkbl_style(scale = TRUE)
 ```
 
@@ -118,8 +118,9 @@ res %>%
        col.names = c("Working group",
                      "Group",
                      "Round",
-                     "Total points: GOV",
-                     "Total points: PHARMA")) %>% 
+                     "Total points: HCP",
+                     "Total points: HTD")) %>% 
+  collapse_rows(columns = 1:2, valign = "top") %>% 
   fkbl_style(scale = TRUE)
 ```
 

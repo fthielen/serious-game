@@ -1,0 +1,8 @@
+- source: htd.qmd
+  quarto-pub:
+    - id: 62232b41-077c-4abb-9d62-06ee2915e121
+      url: 'https://fthielen.quarto.pub/round2-br-confidential-information-for-htd-qaly-adjustment-for-rcmd-treatment-a389'
+- source: hcp.qmd
+  quarto-pub:
+    - id: 888d4bdc-e245-4825-a57a-3ea93c9ca6bb
+      url: 'https://fthielen.quarto.pub/round3-br-confidential-information-for-hcp-budget-and-qaly-adjustment-for-rcmd-treatment-b910'
