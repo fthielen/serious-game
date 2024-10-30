@@ -25,7 +25,22 @@ editor_options:
 knitr::opts_chunk$set(echo = FALSE)
 source(here::here("calculations.R"))
 
-f_kbl_style <- function (fkbl, scale = FALSE, boots_opts = c("striped", "condensed", 
+fkbl <- function (df, digi = 2, big_mark = TRUE, col.names = names(df), 
+  ...) 
+{
+  require("dplyr")
+  require("kableExtra")
+  if (knitr::pandoc_to("docx")) {
+    df %>% flextable::flextable() %>% flextable::colformat_double(x = ., 
+      big.mark = ifelse(big_mark, ",", ""), digits = digi)
+  }
+  else {
+    df %>% kableExtra::kbl(col.names = col.names, digits = digi, 
+      booktabs = TRUE, linesep = "", format.args = list(big.mark = ifelse(big_mark, 
+        ",", "")), ...)
+  }
+}
+fkbl_style <- function(fkbl, scale = FALSE, boots_opts = c("striped", "condensed", 
   "hover"), latx_opts = c("striped", "HOLD_position"), ...) 
 {
   require("kableExtra")
