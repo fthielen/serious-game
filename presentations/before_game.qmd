@@ -3,12 +3,16 @@ author: The HTA course team
 format:
   revealjs:
     embed-resources: true
-    logo: signature.png
+    logo: signature2.png
     css: logo.css
+    smaller: true
+    scrollable: true
+    df-print: paged
 editor: 
   markdown: 
     wrap: 72
 ---
+
 ## The HTA negotiation game {background-color="purple" background-opacity=0.6}
 
 <br> <br> <br> <br>
