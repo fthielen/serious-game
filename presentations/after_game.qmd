@@ -25,7 +25,25 @@ editor_options:
 knitr::opts_chunk$set(echo = FALSE)
 source(here::here("calculations.R"))
 
-library("tatooheen")
+f_kbl_style <- function (fkbl, scale = FALSE, boots_opts = c("striped", "condensed", 
+  "hover"), latx_opts = c("striped", "HOLD_position"), ...) 
+{
+  require("kableExtra")
+  if (knitr::pandoc_to("docx")) {
+    fkbl
+  }
+  else {
+    fkbl %>% kableExtra::kable_styling(bootstrap_options = boots_opts, 
+      latex_options = if (scale) {
+        c(latx_opts, "scale_down")
+      }
+      else {
+        latx_opts
+      }, full_width = F, ...) %>% kableExtra::scroll_box(., 
+      width = "100%", box_css = "border: 0px;")
+  }
+}
+
 library("kableExtra")
 library("tidyverse")
 
