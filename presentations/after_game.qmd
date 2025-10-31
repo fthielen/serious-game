@@ -25,6 +25,7 @@ editor_options:
 knitr::opts_chunk$set(echo = FALSE)
 source(here::here("calculations.R"))
 
+
 fkbl <- function (df, digi = 2, big_mark = TRUE, col.names = names(df), 
   ...) 
 {
@@ -58,6 +59,9 @@ fkbl_style <- function(fkbl, scale = FALSE, boots_opts = c("striped", "condensed
       width = "100%", box_css = "border: 0px;")
   }
 }
+
+
+# library("tatooheen")
 
 library("kableExtra")
 library("tidyverse")
