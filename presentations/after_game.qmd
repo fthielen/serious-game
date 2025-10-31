@@ -15,7 +15,8 @@ editor:
 editor_options: 
   chunk_output_type: console
 ---
-## The HTA negotiation game: results {background-color="purple" background-opacity=0.6}
+
+## The HTA negotiation game: results {background-color="purple" background-opacity="0.6"}
 
 <br> <br> <br> <br>
 
@@ -72,11 +73,10 @@ library("tidyverse")
 
 One of each group, please share your experience:
 
-- Was the negotiaton-power between HCP and HTD balanced?
-- Was it difficult to derive an agreement?
-- What were the main points of discussion?
-- How did you perceive time (pressure)?
-
+-   Was the negotiaton-power between HCP and HTD balanced?
+-   Was it difficult to derive an agreement?
+-   What were the main points of discussion?
+-   How did you perceive time (pressure)?
 
 ## Results (1/5): Overspent budget
 
@@ -161,7 +161,6 @@ res %>%
   fkbl_style(scale = TRUE)
 ```
 
-
 ```{r}
 # ggplot(data = dat_plot, aes(x = Points, y = Institution)) +
 #   geom_boxplot() +
@@ -169,4 +168,3 @@ res %>%
 #   facet_grid(round ~ gr) +
 #   ggtitle("Overall distribution of points by case")
 ```
-
