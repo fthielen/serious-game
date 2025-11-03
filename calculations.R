@@ -6,6 +6,7 @@ library("tidyverse")
 # devtools::install_github(repo="haozhu233/kableExtra", ref="a6af5c0")
 library("kableExtra")
 
+
 # Set global options
 options(scipen = 999,
         digits = 6)
