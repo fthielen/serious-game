@@ -16,7 +16,7 @@ gs4_auth(email = "eshpm.serious.game@gmail.com")
 
 # Set filter for time (as of which responses will be used)
 
-game_date <- lubridate::dmy("03-11-2025")
+game_date <- lubridate::dmy("11-03-2026")
 
 # df_res <- read_sheet(ss = g_sheet, sheet = "responses") %>% 
 #   filter(!is.na(wg)) %>% 

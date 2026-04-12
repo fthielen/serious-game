@@ -15,7 +15,6 @@ editor:
 editor_options: 
   chunk_output_type: console
 ---
-
 ## The HTA negotiation game: results {background-color="purple" background-opacity="0.6"}
 
 <br> <br> <br> <br>
@@ -110,6 +109,8 @@ res %>%
 
 ## Results (3/5): Untreated patients
 
+::: {style="font-size: 80%;"}
+
 ```{r res3, echo = FALSE, message=FALSE}
 res %>%
   filter(n_pat_notx > 0) %>%
@@ -122,6 +123,8 @@ res %>%
   collapse_rows(columns = 1:2, valign = "top") %>% 
   fkbl_style(scale = T)
 ```
+
+:::
 
 ## Results (4/5): Average price per patient
 
@@ -146,6 +149,8 @@ res %>%
 
 ## Results (5/5): Total points
 
+::: {style="font-size: 80%;"}
+
 ```{r res5, echo = FALSE, message=FALSE, warning=F}
 res %>%
   select(wg, gr, round, gov_total, man_total) %>%
@@ -160,6 +165,8 @@ res %>%
   collapse_rows(columns = 1:2, valign = "top") %>% 
   fkbl_style(scale = TRUE)
 ```
+
+:::
 
 ```{r}
 # ggplot(data = dat_plot, aes(x = Points, y = Institution)) +
