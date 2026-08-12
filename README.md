@@ -1,2 +1,223 @@
-# serious-game
-Serious game
+# HTA negotiation serious game
+
+This repository contains the teaching materials and results workflow for a
+classroom negotiation game about a financial agreement for an expensive drug.
+Students represent either a **Healthcare Payer (HCP)** or a **Health Technology
+Developer (HTD)**. They negotiate for three rounds, submit each agreement
+through a Google Form, receive new information between rounds, and discuss the
+calculated results at the end.
+
+The repository is the source of truth for the presentations, news flashes, and
+R-based scoring. The Google Form and Google Sheet are external dependencies.
+
+## Workflow at a glance
+
+```mermaid
+flowchart LR
+    A["Opening presentation<br>and role assignment"] --> B["Round 1<br>baseline negotiation"]
+    B --> C["Submit agreement<br>through Google Form"]
+    C --> D["Round 2<br>confidential HTD news"]
+    D --> E["Submit agreement<br>through Google Form"]
+    E --> F["Round 3<br>confidential HCP news"]
+    F --> G["Submit agreement<br>through Google Form"]
+    G --> H["Google Sheet<br>responses + settings"]
+    H --> I["R calculations"]
+    I --> J["Results presentation<br>and debrief"]
+```
+
+Each working group contains an HCP team and an HTD team. In every round they
+may agree on up to three patient tiers, each with a number of patients and a
+price per patient. A round normally consists of 10 minutes of preparation and
+10 minutes of negotiation. The agreement is valid for one year.
+
+| Stage | Information/action | Material |
+|---|---|---|
+| Start | Explain the scenario, roles, rules, and scoring | [`presentations/before_game.qmd`](presentations/before_game.qmd) |
+| Round 1 | Negotiate using the baseline scenario | Opening presentation |
+| After round 1 | Submit the agreed patient numbers and prices | [Google Form](https://bit.ly/serious-game-result) |
+| Round 2 | Give the confidential QALY update to **HTD only**, then negotiate again | [`news_flashes/htd.qmd`](news_flashes/htd.qmd) / [published version](https://fthielen.quarto.pub/round2-br-confidential-information-for-htd-qaly-adjustment-for-rcmd-treatment-a389/) |
+| After round 2 | Submit the new agreement | [Google Form](https://bit.ly/serious-game-result) |
+| Round 3 | Give the confidential budget/QALY update to **HCP only**, then negotiate again | [`news_flashes/hcp.qmd`](news_flashes/hcp.qmd) / [published version](https://fthielen.quarto.pub/round3-br-confidential-information-for-hcp-budget-and-qaly-adjustment-for-rcmd-treatment-b910/) |
+| After round 3 | Submit the final agreement | [Google Form](https://bit.ly/serious-game-result) |
+| Debrief | Refresh the calculations, render the results, and discuss outcomes | [`presentations/after_game.qmd`](presentations/after_game.qmd) |
+
+The current published opening and results presentations are available at
+[before_game](https://fthielen.quarto.pub/before_game/) and
+[after_game](https://fthielen.quarto.pub/after_game/).
+
+## Repository structure
+
+```text
+.
+├── README.md
+├── calculations.R              # Imports Form responses and calculates scores
+├── app.R                       # Older/experimental Shiny data-entry interface
+├── data/                       # Small prototype data files; not used by the live flow
+├── news_flashes/
+│   ├── htd.qmd                 # Confidential information for HTD before round 2
+│   ├── hcp.qmd                 # Confidential information for HCP before round 3
+│   └── _publish.yml            # Quarto Pub destinations
+└── presentations/
+    ├── before_game.qmd         # Opening Reveal.js presentation
+    ├── after_game.qmd          # Data-driven results presentation
+    ├── logo.css                # Presentation styling
+    ├── signature*.png          # Presentation assets
+    └── _publish.yml            # Quarto Pub destinations
+```
+
+The `.qmd` files are the editable sources. The `.html` and `.docx` files are
+generated outputs and may lag behind their source, so edit and render the
+corresponding `.qmd` file rather than changing generated files directly.
+
+`app.R` is not part of the current Google Form workflow: it writes to a sheet
+named `responses`, supports only two rounds, and uses a different data shape.
+The two files under `data/` are also not referenced by the active calculation
+or presentation code.
+
+## Google Form and Sheet contract
+
+The Google Form writes to the spreadsheet configured by `g_sheet` in
+[`calculations.R`](calculations.R). The script reads two tabs:
+
+- `Form responses 1`: one row per team submission;
+- `settings`: scenario and scoring inputs for each round.
+
+The response import currently relies on **column position**, not the Form's
+question labels. It expects this exact order:
+
+```text
+time, wg, gr,
+r1n1, r1p1, r1n2, r1p2, r1n3, r1p3,
+r2n1, r2p1, r2n2, r2p2, r2n3, r2p3,
+r3n1, r3p1, r3n2, r3p2, r3n3, r3p3
+```
+
+Here, `wg` is the working-group number, `gr` identifies the negotiating
+subgroup, and each `n`/`p` pair is the number of patients and price per patient
+for a tier in a given round. Reordering, adding, or removing Form questions can
+therefore break the import or silently assign the wrong meaning to a column.
+
+The `settings` tab must contain one row per round and the columns used by the
+calculation:
+
+| Column | Meaning |
+|---|---|
+| `round` | Round number used to join settings to responses |
+| `n_pats` | Total eligible patients |
+| `qaly_yr` | QALYs gained per treated patient per year |
+| `gov_max_budget` | HCP budget for the treatment |
+| `wtp` | Cost per QALY used for crowding-out |
+| `list_price` | Drug list price per patient |
+| `sales_expect` | HTD sales-expectation factor used in scoring |
+
+Keep these settings consistent with the opening presentation and confidential
+news flashes whenever the scenario changes.
+
+## Scoring and results
+
+[`calculations.R`](calculations.R) filters responses from `game_date` onward,
+reshapes the three rounds, joins the round settings, and calculates:
+
+- patients treated and untreated;
+- total budget impact and remaining/overspent HCP budget;
+- QALYs gained and QALYs lost through crowding-out;
+- HTD sales;
+- a 0–10 HCP score based on QALYs (60%) and population treated (40%);
+- a 0–10 HTD score based on sales (60%) and sales expectations (40%).
+
+In round 3, the current calculation treats tier 1 as hospital production and
+therefore excludes it from HTD sales. The results presentation reports budget
+overspending, crowding-out, untreated patients, average price per patient, and
+both parties' points by round.
+
+## Preparing a session
+
+1. Confirm that the opening presentation and both confidential news flashes
+   describe the intended scenario.
+2. Check the Google Form question order against the response schema above and
+   submit a test response.
+3. Check all three rows in the Sheet's `settings` tab against the teaching
+   materials.
+4. Change `game_date` near the top of [`calculations.R`](calculations.R) to the
+   session date. Only responses at or after this date are included.
+5. Authenticate `googlesheets4` with an account that can read the Sheet.
+6. Render and check the opening presentation and news flashes.
+7. Verify that the short links shown to students still point to the intended
+   Form and news flashes.
+
+The Google account is named in the R scripts, but credentials and OAuth tokens
+must remain outside this repository.
+
+## Software setup
+
+Install [R](https://www.r-project.org/) and
+[Quarto](https://quarto.org/docs/get-started/), then install the required R
+packages:
+
+```r
+install.packages(c(
+  "googlesheets4",
+  "here",
+  "kableExtra",
+  "knitr",
+  "lubridate",
+  "tidyverse"
+))
+```
+
+Open `serious-game.Rproj`, or run commands from the repository root so that
+`here::here("calculations.R")` resolves correctly. Authenticate once in an
+interactive R session:
+
+```r
+googlesheets4::gs4_auth(email = "eshpm.serious.game@gmail.com")
+```
+
+Render the materials with:
+
+```sh
+quarto render presentations/before_game.qmd
+quarto render news_flashes/htd.qmd
+quarto render news_flashes/hcp.qmd
+quarto render presentations/after_game.qmd
+```
+
+The final command reads the live Sheet and rebuilds the results presentation,
+so run it only after checking `game_date`, the Sheet settings, and the submitted
+responses. Rendering it requires network access and valid Google authorization.
+
+To update an existing Quarto Pub deployment, use the publication configuration
+stored in each folder, for example:
+
+```sh
+quarto publish quarto-pub presentations/before_game.qmd
+quarto publish quarto-pub presentations/after_game.qmd
+quarto publish quarto-pub news_flashes/htd.qmd
+quarto publish quarto-pub news_flashes/hcp.qmd
+```
+
+Publishing changes the student-facing material, so preview the rendered files
+locally before publishing.
+
+## End-of-session workflow
+
+1. Confirm that every working group submitted all three rounds and that no test
+   rows fall within the active date filter.
+2. Render `presentations/after_game.qmd` from the repository root. Its setup
+   chunk sources `calculations.R`, reads the Google Sheet, and calculates the
+   results automatically.
+3. Open `presentations/after_game.html`, check all result tables for missing or
+   implausible values, and use it for the class debrief.
+4. Publish the results only if a public student-facing copy is intended.
+
+## Current maintenance notes
+
+- The spreadsheet ID, Google account, tab names, and session date are hard-coded
+  in the R files.
+- There is no dependency lockfile or automated test for the Form/Sheet schema.
+- Form responses are filtered by date rather than by a dedicated session ID.
+- The generated HTML files may contain results from an earlier session.
+- [`presentations/old_text.qmd`](presentations/old_text.qmd) contains older news
+  wording and is not used by the active presentation flow.
+
+These are useful starting points for the next round of project improvements.
