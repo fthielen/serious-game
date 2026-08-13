@@ -4,7 +4,7 @@ format:
   revealjs:
     theme: white
     embed-resources: true
-    logo: signature2.png
+    logo: ../www/eshpm-logo.png
     css: logo.css
     smaller: true
     scrollable: true

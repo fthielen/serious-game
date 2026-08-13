@@ -1,0 +1,159 @@
+---
+title: ""
+author: ""
+lang: nl
+format:
+  revealjs:
+    embed-resources: true
+    logo: ../www/eshpm-logo.png
+    css: logo.css
+    include-in-header: theme-init.html
+    transition: fade
+    background-transition: fade
+    slide-number: true
+    controls: true
+    progress: true
+    hash: true
+editor:
+  markdown:
+    wrap: 72
+---
+
+## {.title-slide .dark-slide}
+
+::: {.game-kicker}
+ESHPM · HTA-onderhandelingsspel
+:::
+
+<h1>Onderhandel over toegang tot een nieuwe behandeling</h1>
+
+<h3>Het HTA-cursusteam</h3>
+
+## De uitdaging: toegang, gezondheid en betaalbaarheid in balans
+
+Een nieuw weesgeneesmiddel voor een zeldzame chronische spierziekte heeft
+EMA-goedkeuring gekregen. **Benelux is het eerste land** dat vergoeding
+overweegt.
+
+::: {.big-number-row}
+::: {.big-number}
+**500**<br>
+mogelijke patiënten
+:::
+::: {.big-number}
+**0,6**<br>
+QALY per patiënt/jaar
+:::
+::: {.big-number}
+**EUR 150.000**<br>
+lijstprijs
+:::
+::: {.big-number}
+**EUR 45 mln**<br>
+behandelbudget
+:::
+:::
+
+## Twee partijen hebben één werkbare afspraak nodig
+
+::: {.role-layout}
+::: {.role-block}
+<h3>Zorgbetaler — HCP</h3>
+
+Realiseer gezondheidswinst voor de bevolking en bewaak tegelijk het
+zorgbudget en het maatschappelijk draagvlak.
+:::
+::: {.role-block .role-block-purple}
+<h3>Ontwikkelaar — HTD</h3>
+
+Realiseer omzet en voldoe aan aandeelhoudersverwachtingen, terwijl je
+toegang opbouwt in de eerste vergoedingsmarkt.
+:::
+:::
+
+## Onderhandel over maximaal drie patiëntsegmenten
+
+Spreek per segment af:
+
+1. het **aantal patiënten** dat wordt behandeld;
+2. de **prijs per patiënt**.
+
+Samen mogen de segmenten maximaal **500 patiënten** omvatten. Eén speler
+dient de volledige groepsafspraak in via de app.
+
+## Nieuwe informatie verandert de onderhandeling
+
+::: {.round-flow}
+::: {.round-item}
+**Ronde 1**<br>
+Gedeelde uitgangssituatie
+:::
+::: {.round-arrow}
+→
+:::
+::: {.round-item}
+**Ronde 2**<br>
+Vertrouwelijk HTD-nieuws
+:::
+::: {.round-arrow}
+→
+:::
+::: {.round-item}
+**Ronde 3**<br>
+Vertrouwelijk HCP-nieuws
+:::
+:::
+
+Elke ronde levert een nieuwe afspraak voor één jaar op. De app toont nieuwe
+rolspecifieke informatie automatisch.
+
+## De onderhandelingstijd is bewust beperkt
+
+::: {.time-callout}
+**10 minuten** interne voorbereiding<br>
+**+ 10 minuten** onderhandeling
+:::
+
+Gebruik de voorbereiding om prioriteiten, een ondergrens en deelbare
+argumenten vast te stellen.
+
+## Beide partijen krijgen na elke ronde een score
+
+::: {.role-layout}
+::: {.role-block}
+<h3>HCP-score</h3>
+
+- Behaalde QALY's — **60%**
+- Aandeel behandelde patiënten — **40%**
+:::
+::: {.role-block .role-block-purple}
+<h3>HTD-score</h3>
+
+- Omzet — **60%**
+- Omzetverwachtingen — **40%**
+:::
+:::
+
+Geen afspraak betekent voor beide partijen een zeer lage score. De
+eindscore per partij is de som van alle rondes.
+
+## Houd rolspecifieke informatie vertrouwelijk
+
+Toont de app informatie voor jouw rol? Laat die dan niet zien en lees die
+niet voor aan de andere partij. Je bepaalt zelf hoe je de kennis inzet.
+
+Noteer tijdens elke ronde:
+
+- je sterkste argumenten;
+- waardoor de andere partij van positie veranderde;
+- waarom je de uiteindelijke voorwaarden wel of niet accepteerde.
+
+## {.dark-slide .closing-slide}
+
+::: {.game-kicker}
+RONDE 1
+:::
+
+<h1>Open de app en ontmoet je onderhandelingsteam</h1>
+
+<h3>Kies je tutor, groep en toegewezen rol. De eerste ronde verschijnt zodra de begeleider deze start.</h3>

@@ -1,0 +1,7 @@
+<script>
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  document.documentElement.dataset.theme = params.get("theme") === "dark" ? "dark" : "light";
+  document.documentElement.lang = document.location.pathname.indexOf("-nl") > -1 ? "nl" : "en";
+})();
+</script>

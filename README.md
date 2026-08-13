@@ -9,6 +9,104 @@ calculated results at the end.
 
 The repository is the source of truth for the presentations, news flashes, and
 R-based scoring. The Google Form and Google Sheet are external dependencies.
+It also contains a first Shiny prototype intended to replace this workflow over
+time; the existing Form/Quarto flow remains the production version for now.
+
+Future maintainers and AI agents should begin with [`AGENTS.md`](AGENTS.md) for
+working rules and [`_MAP.md`](_MAP.md) for the architecture and change history.
+
+## Shiny prototype
+
+The first prototype implements the central classroom interaction:
+
+- students join by tutor, negotiation group, and HCP/HTD role;
+- staff unlock a protected control area with a PIN;
+- staff advance all groups or selected tutor/group combinations;
+- new rounds appear automatically in connected student sessions;
+- confidential information is rendered only for the intended role;
+- one player submits the agreement for a negotiation group and round;
+- staff see the roster, progress, agreements, and calculated results live;
+- tutors can open a static introduction deck and create a live closing-results
+  deck from the staff area;
+- the player and staff views switch instantly between English and Dutch;
+- light and dark modes share one ESHPM-inspired visual system; and
+- presentation links inherit the active language and theme.
+
+Tutor names, group labels, round information, and scenario values are defined
+in [`config.R`](config.R). The prototype uses an in-memory store by default, so
+all joined players, progress, and submissions disappear when the app stops.
+This makes it safe for interaction testing and is **not yet suitable for a live
+class**. The app-facing storage operations are isolated in [`R/storage.R`](R/storage.R)
+so the next version can connect them to Google Sheets without changing the UI.
+
+Run the prototype from the repository root:
+
+```r
+Sys.setenv(STAFF_PIN = "choose-a-local-test-pin")
+shiny::runApp()
+```
+
+If `STAFF_PIN` is not set, the local prototype uses `demo` and displays a
+warning. Never deploy it with that fallback PIN.
+
+### Language, theme, and visual design
+
+The EN/NL and light/dark controls are in the shared app header, so they remain
+available when moving between the player and facilitator views. The selection
+applies to the current browser session. A presentation opened from the Staff
+area receives the same language and theme through its URL.
+
+Interface copy is stored in [`R/i18n.R`](R/i18n.R); scenario-specific round
+titles, shared facts, and confidential news are bilingual entries in
+[`config.R`](config.R). Add new interface text to both dictionaries and keep
+both language versions of scenario content together when editing a round.
+
+The visual system takes its core palette and typography cues from the
+[ESHPM website](https://www.eur.nl/en/eshpm): deep green, purple, warm neutral
+surfaces, clear type hierarchy, and compact controls. Animated rainbow frames
+highlight only important cards and presentation moments. Motion is disabled
+automatically when a browser requests reduced motion.
+
+### Facilitator presentations
+
+The Staff area contains two presentation controls:
+
+- **Open introduction presentation** opens the bundled English or Dutch static
+  Reveal.js deck. It is available before anyone joins and does not depend on
+  live game data.
+- **Create results presentation** becomes useful after agreements have been
+  submitted. It creates a projector-friendly closing deck directly from the
+  current Shiny results. The deck includes reflection questions, overspending,
+  crowding-out, untreated patients, average prices, and HCP/HTD points.
+
+The closing deck opens in a new browser tab. Navigate with its buttons, arrow
+keys, Page Up/Page Down, or the space bar. Its result tables update while the
+app is running if agreements are corrected after the deck is created.
+
+The editable opening sources are
+[`presentations/before_game.qmd`](presentations/before_game.qmd) and
+[`presentations/before_game_nl.qmd`](presentations/before_game_nl.qmd). After
+changing them, rebuild both files bundled with Shiny by running this from
+`presentations/`:
+
+```sh
+quarto render before_game.qmd \
+  --output opening-presentation-en.html \
+  --output-dir ../www
+
+quarto render before_game_nl.qmd \
+  --output opening-presentation-nl.html \
+  --output-dir ../www
+```
+
+The closing deck is part of `app.R`; it does not render or read the legacy
+`presentations/after_game.qmd` workflow.
+
+Run its automated checks with:
+
+```sh
+Rscript tests/testthat.R
+```
 
 ## Workflow at a glance
 
@@ -50,29 +148,36 @@ The current published opening and results presentations are available at
 ```text
 .
 ├── README.md
-├── calculations.R              # Imports Form responses and calculates scores
-├── app.R                       # Older/experimental Shiny data-entry interface
-├── data/                       # Small prototype data files; not used by the live flow
+├── app.R                       # First interactive Shiny prototype
+├── config.R                    # Tutors, groups, news, and scenario settings
+├── calculations.R              # Current Form-based results workflow
+├── R/
+│   ├── i18n.R                  # English and Dutch interface copy
+│   ├── scoring.R               # Pure scoring functions used by Shiny
+│   └── storage.R               # Replaceable prototype state store
+├── tests/testthat/              # Scoring and state-store checks
+├── www/
+│   ├── styles.css               # Shiny interface styling
+│   ├── app.js                   # Applies language/theme preferences
+│   ├── eshpm-logo.png           # Shared ESHPM logo
+│   ├── opening-presentation-*.html # Bundled EN/NL introduction decks
+│   └── presentation.*           # Live closing-deck styling and controls
 ├── news_flashes/
 │   ├── htd.qmd                 # Confidential information for HTD before round 2
 │   ├── hcp.qmd                 # Confidential information for HCP before round 3
 │   └── _publish.yml            # Quarto Pub destinations
 └── presentations/
     ├── before_game.qmd         # Opening Reveal.js presentation
+    ├── before_game_nl.qmd      # Dutch opening Reveal.js presentation
     ├── after_game.qmd          # Data-driven results presentation
     ├── logo.css                # Presentation styling
-    ├── signature*.png          # Presentation assets
+    ├── theme-init.html         # Applies the selected presentation theme
     └── _publish.yml            # Quarto Pub destinations
 ```
 
-The `.qmd` files are the editable sources. The `.html` and `.docx` files are
-generated outputs and may lag behind their source, so edit and render the
-corresponding `.qmd` file rather than changing generated files directly.
-
-`app.R` is not part of the current Google Form workflow: it writes to a sheet
-named `responses`, supports only two rounds, and uses a different data shape.
-The two files under `data/` are also not referenced by the active calculation
-or presentation code.
+The `.qmd` files are the editable presentation sources. Generated outputs may
+lag behind their source, so edit and render the corresponding `.qmd` file rather
+than changing generated files directly.
 
 ## Google Form and Sheet contract
 
@@ -161,6 +266,8 @@ install.packages(c(
   "kableExtra",
   "knitr",
   "lubridate",
+  "shiny",
+  "testthat",
   "tidyverse"
 ))
 ```
@@ -177,6 +284,7 @@ Render the materials with:
 
 ```sh
 quarto render presentations/before_game.qmd
+quarto render presentations/before_game_nl.qmd
 quarto render news_flashes/htd.qmd
 quarto render news_flashes/hcp.qmd
 quarto render presentations/after_game.qmd
@@ -213,11 +321,10 @@ locally before publishing.
 ## Current maintenance notes
 
 - The spreadsheet ID, Google account, tab names, and session date are hard-coded
-  in the R files.
+  in the current Form-based R files.
 - There is no dependency lockfile or automated test for the Form/Sheet schema.
 - Form responses are filtered by date rather than by a dedicated session ID.
-- The generated HTML files may contain results from an earlier session.
-- [`presentations/old_text.qmd`](presentations/old_text.qmd) contains older news
-  wording and is not used by the active presentation flow.
+- The Shiny prototype has automated scoring/state checks, but its live state is
+  not persistent until the Google Sheets adapter is added.
 
 These are useful starting points for the next round of project improvements.

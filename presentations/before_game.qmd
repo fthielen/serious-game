@@ -1,134 +1,157 @@
 ---
-author: The HTA course team
+title: ""
+author: ""
 format:
   revealjs:
     embed-resources: true
-    logo: signature2.png
+    logo: ../www/eshpm-logo.png
     css: logo.css
-    smaller: true
-    scrollable: true
-    df-print: paged
-editor: 
-  markdown: 
+    include-in-header: theme-init.html
+    transition: fade
+    background-transition: fade
+    slide-number: true
+    controls: true
+    progress: true
+    hash: true
+editor:
+  markdown:
     wrap: 72
 ---
 
-## The HTA negotiation game {background-color="purple" background-opacity=0.6}
+## {.title-slide .dark-slide}
 
-<br> <br> <br> <br>
-
-### The HTA course team
-
-## Introduction and aim
-
--   Get familiar with financial agreements for (new) expensive drugs
--   Learn how these deals lower budgetary strains
--   Experience the negotiation process between Health Technology
-    Developer (HTD) and healthcare payer (HCP)
-
-. . .
-
--   Undertake three negotiation rounds receiving new (confidential)
-    information between them
--   Discuss negotiation/game outcomes
-
-## Information to start round 1
-
-### Background
-
--   A new orphan drug for rare chronic muscle disease (RCMD) was
-    recently approved by the EMA.
--   In country "Benelux", **500 patients** might benefit from this drug.
--   With this drug, a total of **0.6 QALYs** will be gained per patient
-    treated, per year.
--   The official list price of the drug is **€150,000** per patient per
-    year.
-
-## Other information
-
--   The healthcare budget for this specific treatment for Benelux is 45 mln € per year
--   HTD receives **`confidential`** information at start of second round.
--   HCP receives **`confidential`** information at start of third round.
--   HTD and HCP negotiate a (financial) arrangement for this drug.
--   Benelux is the *first* and *only* country considering the
-    reimbursement of this drug (i.e., list prices for other countries
-    are not available)
-
-## Game setting
-
--   3-4 students per negotiation party (either HTD or HCP) negotiate
--   6-8 students play the game together
--   Negotiate 1 to 3 prices for 1 to 3 patient groups (max. number of
-    patients is 500)
-
-## Game rules
-
--   After each game -\> log negotiation result -\> scores will be
-    calculated
-
--   If no agreement is reached: both parties receive very low score (no
-    sales, no QALYs)
-
--   Each round may take *10 minutes internal preparation* time (within
-    HTD and HCP) and *10 minutes negotiation*
-
--   Negotiation results are valid for 1 year
-
--   Each new round starts with a new information
-
-## Other relevant information
-
-### About the drug
-
--   Drug has market exclusivity for 10 more years
--   Country Benelux has 10% of the population of the total potential
-    market
-
-::: fragment
--   Previous negotiations on expensive drugs showed a 20% price
-    reduction (off the list price)
+::: {.game-kicker}
+ESHPM · HTA negotiation game
 :::
 
-::: fragment
--   Current health care gain 1 QALY for €50,000. If spending is above
-    budget -\> crowding out (QALYs lost in other parts of health care)
+<h1>Negotiate access to a new treatment</h1>
+
+<h3>The HTA course team</h3>
+
+## The challenge is to balance access, health and affordability
+
+A new orphan drug for a rare chronic muscle disease has received EMA
+approval. **Benelux is the first country** considering reimbursement.
+
+::: {.big-number-row}
+::: {.big-number}
+**500**<br>
+eligible patients
+:::
+::: {.big-number}
+**0.6**<br>
+QALY per patient/year
+:::
+::: {.big-number}
+**EUR 150,000**<br>
+list price
+:::
+::: {.big-number}
+**EUR 45m**<br>
+treatment budget
+:::
 :::
 
-## Scoring
+## Two parties need one workable agreement
 
-### Healthcare payer (HCP)
+::: {.role-layout}
+::: {.role-block}
+<h3>Healthcare Payer — HCP</h3>
 
--   Score depends on *QALYs gained* in Benelux and *popularity*
--   If not all patients in Benelux are treated, popularity is lost
+Secure health gains for the population while protecting the healthcare
+budget and public support.
+:::
+::: {.role-block .role-block-purple}
+<h3>Health Technology Developer — HTD</h3>
 
-### Health Technology Developer (HTD)
+Achieve sales and meet shareholder expectations while establishing access
+in the first reimbursement market.
+:::
+:::
 
--   Score depends on *sales* and *shareholder sales expectations*
+## You can negotiate up to three patient segments
 
-**Total game score per party = sum of all scores per round**
+For each segment, agree on:
 
-## What to do after each negotiation round?
+1. the **number of patients** treated;
+2. the **price per patient**.
 
--   Fill-in your negotiation results at\
-    **[bit.ly/serious-game-result]{.underline}**
+The segments together may cover no more than **500 patients**. One player
+submits the complete group agreement in the app.
 
--   Keep track of your main arguments during the discussion and whether
-    these convinced the other party.
+## New information changes the negotiation
 
-## Round 2: NEWS
+::: {.round-flow}
+::: {.round-item}
+**Round 1**<br>
+Shared baseline
+:::
+::: {.round-arrow}
+→
+:::
+::: {.round-item}
+**Round 2**<br>
+Confidential HTD news
+:::
+::: {.round-arrow}
+→
+:::
+::: {.round-item}
+**Round 3**<br>
+Confidential HCP news
+:::
+:::
 
--   **ONLY HTD receives confidential information**
--   Only Health Technology Developer: *bit.ly/round2_htd*
--   Maximum amount of patients is still 500
+Each round creates a new one-year agreement. Your app reveals new
+role-specific information automatically.
 
-## Round 3: NEWS
+## Negotiation time is deliberately limited
 
--   **ONLY HCP receives confidential information**
--   Only Healthcare Payer: *bit.ly/round3_hcp*
--   Academic hospitals in Benelux can now self-produce this drug for
-    **€40,000 per patient per year**, but for a maximum of 150 patients
-    (out of total 500).
--   Maximum amount of patients is still 500
--   Price for hospital production needs to be paid from total available budget to HCP
--   HTD may propose cheaper price with the requirement that no patients
-    are treated with hospital made drug
+::: {.time-callout}
+**10 minutes** internal preparation<br>
+**+ 10 minutes** negotiation
+:::
+
+Use the preparation time to set priorities, a walk-away position, and the
+arguments you are willing to share.
+
+## Both parties are scored after every round
+
+::: {.role-layout}
+::: {.role-block}
+<h3>HCP score</h3>
+
+- QALYs gained — **60%**
+- Share of patients treated — **40%**
+:::
+::: {.role-block .role-block-purple}
+<h3>HTD score</h3>
+
+- Sales — **60%**
+- Sales expectations — **40%**
+:::
+:::
+
+No agreement means very low scores for both parties. The final party score
+is the sum across all rounds.
+
+## Keep role-specific information confidential
+
+When the app labels information for your role, do not show or read it to the
+other party. You may decide how to use that knowledge in the negotiation.
+
+During each round, note:
+
+- your strongest arguments;
+- what changed the other party’s position;
+- why you accepted—or rejected—the final terms.
+
+## {.dark-slide .closing-slide}
+
+::: {.game-kicker}
+ROUND 1
+:::
+
+<h1>Join the app and meet your negotiating team</h1>
+
+<h3>Choose your tutor, group and assigned role. The first round will appear when your facilitator starts it.</h3>
