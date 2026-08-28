@@ -108,6 +108,10 @@ contains an explicit deployment allowlist: `app.R`, `config.R`, `R/`, and
 environment files remain in the repository but are not included in the running
 application image.
 
+The current public deployment is available at
+[serious-game on Connect Cloud](https://01a047fd-8fd8-c973-b4f6-9dfe923afd7f.share.connect.posit.cloud/).
+It was verified on 28 August 2026 with R 4.6.0 and the Neon PostgreSQL backend.
+
 To publish:
 
 1. Sign in to [Posit Connect Cloud](https://connect.posit.cloud/) and choose

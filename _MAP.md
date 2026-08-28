@@ -275,7 +275,7 @@ Shiny processes and browsers see each other's changes.
 - Provisioned no additional Neon services because the app currently uses only
   PostgreSQL. Made no scoring or legacy-workflow changes.
 
-### Phase J — free cloud deployment preparation
+### Phase J — free cloud deployment
 
 - Merged the validated `improvement1` branch into `main` and pushed both branch
   tips to GitHub.
@@ -287,6 +287,13 @@ Shiny processes and browsers see each other's changes.
   no credentials, and excludes local Neon context and environment files.
 - Pinned the deployment platform to R 4.6.0, the newest Connect Cloud-supported
   R version at the time of preparation.
+- Published the app publicly at
+  `https://01a047fd-8fd8-c973-b4f6-9dfe923afd7f.share.connect.posit.cloud/`.
+- Verified from the deployment logs that Connect Cloud installed all 42 R
+  dependencies, started the Shiny worker with R 4.6.0, and connected to the
+  existing Neon PostgreSQL schema.
+- Enabled automatic publishing from pushes to `main` and stored all three
+  deployment variables in Connect Cloud rather than in version control.
 
 ## 6. Current scoring behavior
 
@@ -352,15 +359,15 @@ The PostgreSQL adapter is linked to a managed Neon database. Run all three round
 from multiple browser sessions, restart the R process, and confirm state
 persists. Decide retention and deletion policy before storing classroom data.
 
-### 3. Prepare shinyapps.io deployment
+### 3. Harden the Connect Cloud deployment
 
-- Configure the Neon `DATABASE_URL`, the production `STAFF_PIN`, and any
-  explicit storage override for shinyapps.io without committing them.
-- Remove reliance on the `demo` fallback.
-- Add dependency management, preferably `renv`, including `RPostgres`.
-- Test concurrent sessions and reconnect behavior.
-- Confirm the static presentation assets are included in the deployment
-  bundle.
+- Restrict the Posit GitHub App to the `serious-game` repository.
+- Complete the concurrent-session and reconnect rehearsal against the public
+  deployment.
+- Confirm the static opening presentations and live results route at classroom
+  projector dimensions.
+- Decide when to disable automatic publishing so the classroom release is
+  frozen before a live session.
 
 ### 4. Classroom acceptance test
 
