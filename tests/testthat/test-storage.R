@@ -25,6 +25,32 @@ test_that("rounds advance and stop after the final round", {
   expect_equal(selected$status, "Finished")
 })
 
+test_that("starting and advancing are distinct operations", {
+  store <- create_memory_store(game_config)
+
+  store$advance("Tutor 1", "A", from_rounds = 0L)
+  store$advance("Tutor 1", "A", from_rounds = 0L)
+  selected <- subset(store$get_state(), tutor == "Tutor 1" & group == "A")
+  expect_equal(selected$current_round, 1L)
+
+  store$advance("Tutor 1", "A", from_rounds = seq_along(game_config$rounds))
+  selected <- subset(store$get_state(), tutor == "Tutor 1" & group == "A")
+  expect_equal(selected$current_round, 2L)
+})
+
+test_that("a PostgreSQL URL is parsed without exposing its components", {
+  args <- parse_postgres_url(
+    "postgresql://game%40user:p%40ss@example.test:5433/classroom%20game?sslmode=require"
+  )
+
+  expect_equal(args$user, "game@user")
+  expect_equal(args$password, "p@ss")
+  expect_equal(args$host, "example.test")
+  expect_equal(args$port, 5433L)
+  expect_equal(args$dbname, "classroom game")
+  expect_equal(args$sslmode, "require")
+})
+
 test_that("a later agreement replaces an earlier group-round submission", {
   store <- create_memory_store(game_config)
   first <- data.frame(

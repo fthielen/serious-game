@@ -17,9 +17,13 @@ game_config <- list(
   max_patients = 500,
   storage = list(
     # "memory" is intended for local testing. Data is lost when the app stops.
-    # The storage interface is deliberately separate so Google Sheets can be
-    # connected without changing the UI or scoring code.
-    mode = Sys.getenv("GAME_STORAGE_MODE", unset = "memory")
+    # "postgres" uses DATABASE_URL (or standard PG* environment variables)
+    # and is suitable for shared online state. A configured DATABASE_URL selects
+    # PostgreSQL automatically unless GAME_STORAGE_MODE explicitly overrides it.
+    mode = Sys.getenv(
+      "GAME_STORAGE_MODE",
+      unset = if (nzchar(Sys.getenv("DATABASE_URL", unset = ""))) "postgres" else "memory"
+    )
   ),
   rounds = list(
     list(
@@ -45,8 +49,8 @@ game_config <- list(
       number = 2L,
       title = list(en = "Revised evidence", nl = "Herzien bewijs"),
       public_summary = list(
-        en = c("A new negotiation round has started.", "The maximum eligible population remains 500 patients."),
-        nl = c("Een nieuwe onderhandelingsronde is gestart.", "De maximale patiëntpopulatie blijft 500.")
+        en = c("New confidential information has been disclosed to the HTD team.", "The maximum eligible population remains 500 patients."),
+        nl = c("Er is nieuwe vertrouwelijke informatie bekendgemaakt aan het HTD-team.", "De maximale patiëntpopulatie blijft 500.")
       ),
       confidential = list(
         en = list(HCP = character(), HTD = c("A new cost-utility analysis revises the health gain from 0.6 to 0.3 QALYs per patient per year.", "The reduction is caused by more frequent adverse events, including auto-immune responses, observed in daily practice.", "This information is under embargo and must not be shared with the HCP.")),
@@ -65,7 +69,7 @@ game_config <- list(
     ),
     list(
       number = 3L,
-      title = list(en = "Budget and hospital production", nl = "Budget en ziekenhuisproductie"),
+      title = list(en = "Final negotiation", nl = "Laatste onderhandeling"),
       public_summary = list(
         en = c("The final negotiation round has started.", "The maximum eligible population remains 500 patients."),
         nl = c("De laatste onderhandelingsronde is gestart.", "De maximale patiëntpopulatie blijft 500.")

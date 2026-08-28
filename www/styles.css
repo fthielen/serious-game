@@ -175,7 +175,9 @@ label, .control-label { color: var(--eshpm-ink); font-weight: 800; margin-bottom
 .waiting-pulse span:nth-child(3) { animation-delay: 320ms; }
 
 .round-layout { display: grid; gap: 22px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.round-card h2 { margin: 14px 0 20px; }
+.round-heading { align-items: baseline; display: flex; gap: 18px; margin: 4px 0 24px; }
+.round-heading h1 { font-size: clamp(2.5rem, 5vw, 4.5rem); margin: 0; }
+.round-number { color: var(--eshpm-purple); font-size: clamp(1.2rem, 2.5vw, 1.8rem); font-weight: 900; white-space: nowrap; }
 .content-list { color: var(--muted); padding-left: 1.3em; }
 .content-list li { margin-bottom: 0.65em; }
 .confidential-card { background: var(--surface); }
@@ -183,6 +185,11 @@ label, .control-label { color: var(--eshpm-ink); font-weight: 800; margin-bottom
 .no-news-card { align-items: center; display: flex; }
 .agreement-card h3 { margin-top: 0; }
 .help-block { background: var(--eshpm-warm); border-radius: 8px; color: var(--eshpm-ink); padding: 12px 15px; }
+.hospital-production-panel { align-items: end; background: var(--surface-soft); border: 1px solid var(--border); border-radius: 10px; display: grid; gap: 20px; grid-template-columns: minmax(240px, 1fr) minmax(190px, auto); margin: 12px 0 24px; padding: 18px; }
+.hospital-production-panel .form-group { margin: 0; }
+.fixed-price { display: flex; flex-direction: column; padding-bottom: 7px; }
+.fixed-price span { color: var(--eshpm-purple); font-size: 1.25rem; font-weight: 900; }
+.private-submission-note { max-width: 720px; }
 
 .staff-heading { align-items: flex-start; display: flex; justify-content: space-between; margin-bottom: 28px; }
 .staff-heading h1 { font-size: clamp(2.5rem, 5vw, 4.5rem); margin: 8px 0 12px; }
@@ -192,6 +199,7 @@ label, .control-label { color: var(--eshpm-ink); font-weight: 800; margin-bottom
 .feature-card h3, .dashboard-card h3 { margin-top: 0; }
 .button-row { display: flex; flex-wrap: wrap; gap: 9px; }
 .demo-warning { background: #fff2cd; border-left: 4px solid #e2a720; border-radius: 5px; color: #3d330d; margin-bottom: 22px; padding: 13px 15px; }
+.storage-warning { color: #a33a22; font-size: 0.92rem; font-weight: 700; margin-top: -4px; }
 
 .table-responsive { border: 0; }
 .table { color: var(--eshpm-ink); margin-bottom: 0; }
@@ -199,6 +207,11 @@ label, .control-label { color: var(--eshpm-ink); font-weight: 800; margin-bottom
 .table-striped > tbody > tr:nth-of-type(odd) { background: color-mix(in srgb, var(--eshpm-warm) 55%, transparent); }
 .table > tbody > tr > td { border-top-color: var(--border); }
 .modal-content { background: var(--surface); border-radius: 14px; color: var(--eshpm-ink); }
+.agreements-dashboard { min-width: 0; }
+.agreements-table-wrap { max-width: 100%; overflow-x: auto; }
+.agreements-table-wrap .table { font-size: 0.76rem; white-space: nowrap; width: auto; }
+.agreements-table-wrap .table > thead > tr > th, .agreements-table-wrap .table > tbody > tr > td { padding: 6px 7px; }
+.modal-agreement-summary { margin: 22px 0 6px; width: 100%; }
 
 @keyframes rainbow-turn { to { transform: rotate(1turn); } }
 @keyframes float-shape { 0%, 100% { transform: translateY(0) rotate(14deg); } 50% { transform: translateY(-14px) rotate(24deg); } }
@@ -217,6 +230,8 @@ label, .control-label { color: var(--eshpm-ink); font-weight: 800; margin-bottom
   .hero-grid { padding-top: 10px; }
   .player-header, .staff-heading { align-items: flex-start; flex-direction: column; gap: 16px; }
   .feature-card { min-height: auto; }
+  .round-heading { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .hospital-production-panel { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 520px) {

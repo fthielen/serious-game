@@ -21,10 +21,13 @@ The first prototype implements the central classroom interaction:
 
 - students join by tutor, negotiation group, and HCP/HTD role;
 - staff unlock a protected control area with a PIN;
-- staff advance all groups or selected tutor/group combinations;
+- staff start lobby groups separately from advancing active groups;
 - new rounds appear automatically in connected student sessions;
 - confidential information is rendered only for the intended role;
-- one player submits the agreement for a negotiation group and round;
+- one player submits the agreement for a negotiation group and round after a
+  confirmation step;
+- Round 3 hospital production is an optional HCP-only decision and is not
+  displayed to the HTD role;
 - staff see the roster, progress, agreements, and calculated results live;
 - tutors can open a static introduction deck and create a live closing-results
   deck from the staff area;
@@ -33,11 +36,11 @@ The first prototype implements the central classroom interaction:
 - presentation links inherit the active language and theme.
 
 Tutor names, group labels, round information, and scenario values are defined
-in [`config.R`](config.R). The prototype uses an in-memory store by default, so
-all joined players, progress, and submissions disappear when the app stops.
-This makes it safe for interaction testing and is **not yet suitable for a live
-class**. The app-facing storage operations are isolated in [`R/storage.R`](R/storage.R)
-so the next version can connect them to Google Sheets without changing the UI.
+in [`config.R`](config.R). Without a database connection the app uses an
+in-memory store, so joined players, progress, and submissions disappear when
+the app stops. When `DATABASE_URL` is configured, the PostgreSQL backend in
+[`R/storage.R`](R/storage.R) is selected automatically and provides shared,
+persistent state. The legacy Google Form/Sheet workflow is unchanged.
 
 Run the prototype from the repository root:
 
@@ -48,6 +51,53 @@ shiny::runApp()
 
 If `STAFF_PIN` is not set, the local prototype uses `demo` and displays a
 warning. Never deploy it with that fallback PIN.
+
+### Neon PostgreSQL setup
+
+PostgreSQL is the recommended first online backend because every Shiny process
+can read and update the same session state. The database tables are created
+automatically on first connection. Install the two database packages once:
+
+```r
+install.packages(c("DBI", "RPostgres"))
+```
+
+This repository is linked locally to Neon with its CLI. `neon link` writes the
+workspace context to `.neon` and the Neon variables to `.env.local`; both are
+ignored by Git. For local R use, pull only the PostgreSQL variables into the
+equally ignored `.Renviron` file:
+
+```sh
+npx neon@latest link --project-id YOUR_PROJECT_ID -y
+npx neon@latest env pull --file .Renviron --service postgres
+```
+
+The resulting `DATABASE_URL` is the pooled URL used for normal app traffic.
+`DATABASE_URL_UNPOOLED` is the direct connection used for automatic table
+setup. No Neon Auth, Data API, Object Storage, Functions, or AI Gateway service
+is needed by this version of the app.
+
+Set a staff PIN separately and start the app from the repository root:
+
+```r
+Sys.setenv(
+  STAFF_PIN = "choose-a-long-staff-pin"
+)
+shiny::runApp()
+```
+
+Set `GAME_STORAGE_MODE=memory` to override the automatic selection for an
+isolated local test. The backend also accepts `PGHOST`, `PGDATABASE`, `PGUSER`,
+`PGPASSWORD`, and optionally `PGPORT`/`PGSSLMODE` instead of `DATABASE_URL`.
+Change `session_id` in `config.R` for a new classroom run; it separates one
+session's state from another. The staff reset removes only the configured
+session's players, agreements, and progress.
+
+Do not commit a connection URL or staff PIN. The local Neon connection does not
+automatically transfer its credentials to shinyapps.io: a public deployment
+still needs a tested secret-delivery method and a concurrent multi-browser
+rehearsal. Credentials must be handled deliberately before deployment rather
+than added to `config.R`.
 
 ### Language, theme, and visual design
 

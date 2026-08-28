@@ -162,6 +162,7 @@ server <- function(input, output, session) {
   active_view <- reactiveVal("play")
   language <- reactiveVal("en")
   theme <- reactiveVal("light")
+  pending_agreement <- reactiveVal(NULL)
 
   observeEvent(session$clientData$url_search, {
     query <- shiny::parseQueryString(session$clientData$url_search %||% "")
@@ -179,6 +180,11 @@ server <- function(input, output, session) {
   round_summary <- function(round_config) round_config$public_summary[[language()]]
   round_confidential <- function(round_config, role) round_config$confidential[[language()]][[role]]
   euro <- function(value) format_euro(value, language())
+
+  observe({
+    invalidateLater(game_config$poll_interval_ms, session)
+    try(store$refresh(), silent = TRUE)
+  })
 
   observeEvent(input$nav_play, active_view("play"))
   observeEvent(input$nav_staff, active_view("staff"))
@@ -344,15 +350,19 @@ server <- function(input, output, session) {
       existing$tutor == player$tutor & existing$group == player$group & existing$round == round_number,
       , drop = FALSE
     ]
-    default_p1 <- if (round_number == 3L) round_config$settings$hospital_price else if (nrow(existing) == 1) existing$p1[[1]] else 0
+    field_value <- function(name, fallback = 0) if (nrow(existing) == 1) existing[[name]][[1]] else fallback
+    can_submit <- round_number < 3L || identical(player$role, "HCP")
 
     div(
+      div(
+        class = "round-heading",
+        tags$span(class = "round-number", paste(t("round"), round_number)),
+        h1(round_title(round_config))
+      ),
       div(
         class = "round-layout",
         div(
           class = "game-card round-card",
-          tags$span(class = "status-pill", paste(t("round"), round_number)),
-          h2(round_title(round_config)),
           bullet_list(round_summary(round_config))
         ),
         if (length(confidential) > 0) {
@@ -369,55 +379,112 @@ server <- function(input, output, session) {
       div(
         class = "game-card agreement-card",
         h3(t("agreement_title")),
-        p(t("agreement_intro")),
-        if (round_number == 3L) p(class = "help-block", t("hospital_help")),
-        fluidRow(
-          column(4, h4(if (round_number == 3L) t("tier_hospital") else t("tier", 1)), numericInput("n1", t("tier_patients", 1), 0, min = 0, step = 1), numericInput("p1", t("tier_price", 1), default_p1, min = 0, step = 1000)),
-          column(4, h4(t("tier", 2)), numericInput("n2", t("tier_patients", 2), 0, min = 0, step = 1), numericInput("p2", t("tier_price", 2), 0, min = 0, step = 1000)),
-          column(4, h4(t("tier", 3)), numericInput("n3", t("tier_patients", 3), 0, min = 0, step = 1), numericInput("p3", t("tier_price", 3), 0, min = 0, step = 1000))
+        if (can_submit) p(t("agreement_intro")) else p(class = "help-block private-submission-note", t("hcp_submits_round3")),
+        if (can_submit && round_number == 3L) tagList(
+          p(class = "help-block", t("hospital_help")),
+          checkboxInput("use_hospital_production", t("use_hospital_production"), value = field_value("n1") > 0),
+          conditionalPanel(
+            condition = "input.use_hospital_production",
+            div(
+              class = "hospital-production-panel",
+              numericInput("hospital_patients", t("hospital_patients"), field_value("n1"), min = 0, max = round_config$settings$hospital_capacity, step = 1),
+              div(class = "fixed-price", strong(t("price_per_patient")), tags$span(euro(round_config$settings$hospital_price)))
+            )
+          )
         ),
-        actionButton("submit_agreement", t("submit_agreement"), class = "btn-primary"),
+        if (can_submit) fluidRow(
+          if (round_number < 3L) column(4, h4(t("tier", 1)), numericInput("n1", t("tier_patients", 1), field_value("n1"), min = 0, step = 1), numericInput("p1", t("tier_price", 1), field_value("p1"), min = 0, step = 1000)),
+          column(if (round_number == 3L) 6 else 4, h4(t("tier", 2)), numericInput("n2", t("tier_patients", 2), field_value("n2"), min = 0, step = 1), numericInput("p2", t("tier_price", 2), field_value("p2"), min = 0, step = 1000)),
+          column(if (round_number == 3L) 6 else 4, h4(t("tier", 3)), numericInput("n3", t("tier_patients", 3), field_value("n3"), min = 0, step = 1), numericInput("p3", t("tier_price", 3), field_value("p3"), min = 0, step = 1000))
+        ),
+        if (can_submit) actionButton("submit_agreement", t("submit_agreement"), class = "btn-primary"),
         hr(),
         h4(t("current_submission")),
-        tableOutput("current_agreement")
+        if (can_submit) tableOutput("current_agreement") else textOutput("private_submission_status")
       )
     )
   })
 
-  observeEvent(input$submit_agreement, {
+  agreement_from_inputs <- function() {
     state <- current_group_state()
     round_number <- state$current_round[[1]]
     req(round_number >= 1L, round_number <= length(game_config$rounds))
-    req(input$n1, input$p1, input$n2, input$p2, input$n3, input$p3)
-    patient_numbers <- c(input$n1, input$n2, input$n3)
-    prices <- c(input$p1, input$p2, input$p3)
+    if (round_number == 3L && !identical(player$role, "HCP")) return(NULL)
+    n1 <- if (round_number == 3L) {
+      if (isTRUE(input$use_hospital_production)) input$hospital_patients %||% 0 else 0
+    } else input$n1 %||% 0
+    p1 <- if (round_number == 3L) {
+      if (isTRUE(input$use_hospital_production)) game_config$rounds[[3]]$settings$hospital_price else 0
+    } else input$p1 %||% 0
+    patient_numbers <- c(n1, input$n2 %||% 0, input$n3 %||% 0)
+    prices <- c(p1, input$p2 %||% 0, input$p3 %||% 0)
 
     if (any(!is.finite(c(patient_numbers, prices))) || any(c(patient_numbers, prices) < 0)) {
-      showNotification(t("nonnegative"), type = "error"); return()
+      showNotification(t("nonnegative"), type = "error"); return(NULL)
     }
     if (any(patient_numbers != round(patient_numbers))) {
-      showNotification(t("whole_patients"), type = "error"); return()
+      showNotification(t("whole_patients"), type = "error"); return(NULL)
     }
     if (sum(patient_numbers) > game_config$max_patients) {
-      showNotification(t("exceeds_patients", game_config$max_patients), type = "error"); return()
+      showNotification(t("exceeds_patients", game_config$max_patients), type = "error"); return(NULL)
     }
     if (round_number == 3L) {
       settings <- game_config$rounds[[3]]$settings
-      if (input$n1 > settings$hospital_capacity) {
-        showNotification(t("hospital_limit"), type = "error"); return()
-      }
-      if (input$n1 > 0 && input$p1 != settings$hospital_price) {
-        showNotification(t("hospital_price"), type = "error"); return()
+      if (n1 > settings$hospital_capacity) {
+        showNotification(t("hospital_limit"), type = "error"); return(NULL)
       }
     }
 
-    store$save_agreement(data.frame(
+    data.frame(
       tutor = player$tutor, group = player$group, round = as.integer(round_number),
-      n1 = input$n1, p1 = input$p1, n2 = input$n2, p2 = input$p2, n3 = input$n3, p3 = input$p3,
+      n1 = patient_numbers[[1]], p1 = prices[[1]], n2 = patient_numbers[[2]], p2 = prices[[2]], n3 = patient_numbers[[3]], p3 = prices[[3]],
       updated_at = format(Sys.time(), tz = "UTC", usetz = TRUE),
       stringsAsFactors = FALSE
+    )
+  }
+
+  observeEvent(input$submit_agreement, {
+    agreement <- agreement_from_inputs()
+    if (is.null(agreement)) return()
+    pending_agreement(agreement)
+    tier_labels <- vapply(1:3, function(index) {
+      if (agreement$round[[1]] == 3L && index == 1L) t("tier_hospital") else t("tier", index)
+    }, character(1))
+    summary <- data.frame(
+      tier = tier_labels,
+      patients = as.numeric(agreement[1, c("n1", "n2", "n3")]),
+      price = vapply(as.numeric(agreement[1, c("p1", "p2", "p3")]), euro, character(1)),
+      stringsAsFactors = FALSE
+    )
+    names(summary) <- c(t("tier_name"), t("patients"), t("price_per_patient"))
+    showModal(modalDialog(
+      title = t("agreement_confirm_title"),
+      p(t("agreement_confirm_text")),
+      tags$table(
+        class = "table table-condensed modal-agreement-summary",
+        tags$thead(tags$tr(lapply(names(summary), tags$th))),
+        tags$tbody(lapply(seq_len(nrow(summary)), function(index) tags$tr(lapply(summary[index, ], tags$td))))
+      ),
+      footer = tagList(modalButton(t("cancel")), actionButton("confirm_agreement", t("confirm_submit"), class = "btn-primary"))
     ))
+  })
+
+  observeEvent(input$confirm_agreement, {
+    agreement <- pending_agreement()
+    req(!is.null(agreement))
+    store$save_agreement(agreement)
+    pending_agreement(NULL)
+    removeModal()
     showNotification(t("agreement_saved"), type = "message")
+  })
+
+  output$private_submission_status <- renderText({
+    req(player$joined)
+    store$data_revision()
+    round_number <- current_group_state()$current_round[[1]]
+    agreements <- store$get_agreements()
+    submitted <- any(agreements$tutor == player$tutor & agreements$group == player$group & agreements$round == round_number)
+    if (submitted) t("agreement_received") else t("no_submission")
   })
 
   output$current_agreement <- renderTable({
@@ -428,7 +495,9 @@ server <- function(input, output, session) {
     agreement <- agreements[agreements$tutor == player$tutor & agreements$group == player$group & agreements$round == round_number, , drop = FALSE]
     if (nrow(agreement) == 0) return(stats::setNames(data.frame(t("no_submission")), t("status")))
     result <- data.frame(
-      tier = vapply(1:3, function(index) t("tier", index), character(1)),
+      tier = vapply(1:3, function(index) {
+        if (round_number == 3L && index == 1L) t("tier_hospital") else t("tier", index)
+      }, character(1)),
       patients = as.numeric(unlist(agreement[1, c("n1", "n2", "n3")], use.names = FALSE)),
       price = vapply(as.numeric(unlist(agreement[1, c("p1", "p2", "p3")], use.names = FALSE)), euro, character(1)),
       check.names = FALSE
@@ -464,7 +533,12 @@ server <- function(input, output, session) {
     div(
       div(
         class = "staff-heading",
-        div(tags$span(class = "eyebrow", t("school_name")), h1(t("session_control")), p(t("storage_notice", store$mode))),
+        div(
+          tags$span(class = "eyebrow", t("school_name")),
+          h1(t("session_control")),
+          p(t("storage_notice", store$mode)),
+          if (identical(store$mode, "memory")) p(class = "storage-warning", t("memory_storage_warning"))
+        ),
         actionButton("staff_logout", t("lock_staff"), class = "btn-quiet")
       ),
       div(
@@ -495,15 +569,16 @@ server <- function(input, output, session) {
           ),
           div(
             class = "button-row",
+            actionButton("start_round", t("start_selection"), class = "btn-success"),
             actionButton("previous_round", t("previous_round"), class = "btn-default"),
-            actionButton("next_round", t("advance_selection"), class = "btn-primary"),
-            actionButton("advance_all", t("advance_everyone"), class = "btn-success"),
+            actionButton("next_round", t("next_selection"), class = "btn-primary"),
+            actionButton("advance_all", t("next_everyone"), class = "btn-default"),
             actionButton("reset_game", t("reset_prototype"), class = "btn-danger")
           )
         )
       ),
       div(class = "game-card dashboard-card rainbow-frame", h3(t("live_group_status")), tableOutput("state_table")),
-      div(class = "dashboard-grid", div(class = "game-card dashboard-card", h3(t("joined_players")), tableOutput("players_table")), div(class = "game-card dashboard-card", h3(t("submitted_agreements")), tableOutput("agreements_table"))),
+      div(class = "dashboard-grid", div(class = "game-card dashboard-card", h3(t("joined_players")), tableOutput("players_table")), div(class = "game-card dashboard-card agreements-dashboard", h3(t("submitted_agreements")), div(class = "agreements-table-wrap", tableOutput("agreements_table")))),
       div(class = "game-card dashboard-card", h3(t("calculated_results")), tableOutput("results_table"))
     )
   })
@@ -534,8 +609,9 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$previous_round, { req(staff_authenticated()); store$advance(selected_tutors(), selected_groups(), -1L) })
-  observeEvent(input$next_round, { req(staff_authenticated()); store$advance(selected_tutors(), selected_groups(), 1L) })
-  observeEvent(input$advance_all, { req(staff_authenticated()); store$advance(game_config$tutors, game_config$groups, 1L) })
+  observeEvent(input$start_round, { req(staff_authenticated()); store$advance(selected_tutors(), selected_groups(), 1L, from_rounds = 0L) })
+  observeEvent(input$next_round, { req(staff_authenticated()); store$advance(selected_tutors(), selected_groups(), 1L, from_rounds = seq_along(game_config$rounds)) })
+  observeEvent(input$advance_all, { req(staff_authenticated()); store$advance(game_config$tutors, game_config$groups, 1L, from_rounds = seq_along(game_config$rounds)) })
   observeEvent(input$reset_game, {
     req(staff_authenticated())
     showModal(modalDialog(title = t("reset_title"), t("reset_text"), footer = tagList(modalButton(t("cancel")), actionButton("confirm_reset", t("reset_data"), class = "btn-danger"))))

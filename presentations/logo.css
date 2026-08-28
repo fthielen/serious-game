@@ -40,7 +40,7 @@ html[data-theme="dark"] {
 .reveal .controls { color: var(--eshpm-purple); }
 .reveal .slide-number { background: transparent; color: var(--muted); font-size: 13px; }
 
-.reveal .slide-logo { background: #fff; border-radius: 8px; bottom: 7vh !important; height: 88px !important; max-height: none !important; max-width: none !important; object-fit: contain; padding: 7px 10px; right: 12vw !important; width: 132px !important; }
+.reveal .slide-logo { background: #fff; border-radius: 8px; bottom: 3vh !important; height: 88px !important; max-height: none !important; max-width: none !important; object-fit: contain; padding: 7px 10px; right: 12vw !important; width: 132px !important; }
 .game-kicker { color: #f4c8fb; font-size: 0.34em; font-weight: 900; letter-spacing: 0.13em; margin-bottom: 1.8em; text-transform: uppercase; }
 
 .reveal .slides section.dark-slide {

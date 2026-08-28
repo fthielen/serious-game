@@ -1,6 +1,6 @@
 # Project map and implementation history
 
-Last updated: 2026-08-13
+Last updated: 2026-08-27
 
 This document gives future maintainers and AI agents a compact map of the
 repository, records the work already completed, and separates current behavior
@@ -8,9 +8,11 @@ from proposed future work. For operational rules, read [`AGENTS.md`](AGENTS.md).
 
 ## 1. Current project state
 
-The project began as a Google Form/Sheet workflow and now also contains a first
-Shiny prototype. The prototype is functional for local testing but is not yet
-ready for a public classroom deployment because storage is in memory.
+The project began as a Google Form/Sheet workflow and now also contains a Shiny
+prototype. The prototype has memory and PostgreSQL storage implementations and
+is linked locally to a Neon PostgreSQL project. It is not yet ready for a public
+classroom deployment because shinyapps.io secret delivery and the concurrent
+classroom test are not yet configured.
 
 ```mermaid
 flowchart TB
@@ -25,7 +27,9 @@ flowchart TB
       F["Facilitator browser"] --> APP
       APP --> CFG["config.R"]
       APP --> I18N["R/i18n.R"]
-      APP --> STORE["R/storage.R: memory"]
+      APP --> STORE["R/storage.R"]
+      STORE --> MEM["Memory: local tests"]
+      STORE --> PG["PostgreSQL: shared online state"]
       APP --> SCORE["R/scoring.R"]
       APP --> LIVE["Live results deck"]
       F --> INTRO["Static EN/NL opening decks"]
@@ -46,7 +50,7 @@ flowchart TB
 ├── R/
 │   ├── i18n.R                  # English and Dutch interface translations
 │   ├── scoring.R               # Pure scoring functions for Shiny
-│   └── storage.R               # Store contract and memory implementation
+│   └── storage.R               # Store contract, memory, and PostgreSQL backends
 ├── tests/
 │   ├── testthat.R
 │   └── testthat/
@@ -85,16 +89,17 @@ flowchart TB
 4. Wait in the lobby until staff advances the group.
 5. Receive the shared round facts.
 6. Receive confidential news only when it belongs to the selected role.
-7. Enter up to three patient/price tiers.
-8. Submit once for the complete tutor/group/round; a later submission replaces
-   the earlier one.
+7. Enter up to three patient/price tiers. In Round 3, the HCP may separately
+   choose optional hospital production; the HTD never sees this control.
+8. Review a confirmation and submit for the complete tutor/group/round; a later
+   submission replaces the earlier one. Round 3 submission is HCP-only.
 9. After the last round, see the group results.
 
 ### Facilitator flow
 
 1. Open the Staff view and enter `STAFF_PIN`.
 2. Open the static introduction deck in the active language and theme.
-3. Advance every group or a selected tutor/group forward or backward.
+3. Start selected lobby groups or advance active groups forward/backward.
 4. Monitor group status, connected role sessions, submissions, and calculated
    results.
 5. After checking agreements, publish/open the live results presentation.
@@ -107,8 +112,10 @@ flowchart TB
 - **Agreements:** tutor/group/round, three patient/price pairs, `updated_at`.
 - **Results publication:** one Boolean in the current store.
 
-The memory store creates every configured tutor/group combination. All state
-is lost when the R process stops.
+The memory store creates every configured tutor/group combination and loses all
+state when the R process stops. The PostgreSQL store creates the same state in
+`hta_game_*` tables, scopes it by `session_id`, and polls revisions so separate
+Shiny processes and browsers see each other's changes.
 
 ## 4. Presentation map
 
@@ -240,6 +247,34 @@ is lost when the R process stops.
   agreement score zero for both parties, and comparing proposed formulas on a
   scenario grid before adoption.
 
+### Phase I — feedback round 1 and PostgreSQL option
+
+- Added a distinct **Start selected groups** action for lobby groups; advancing
+  active groups is now a separate control and cannot accidentally start lobby
+  groups.
+- Added an agreement-review modal before a submission is saved or replaced.
+- Moved the round number into a larger page heading and condensed the wide
+  staff agreements table.
+- Clarified in the shared Round 2 copy that confidential information was
+  disclosed to HTD without exposing its contents.
+- Made Round 3 hospital production an optional HCP-only control. The neutral
+  public round title, submission restriction, and HTD status-only display keep
+  the existence and use of hospital production out of the HTD view.
+- Lowered the static opening-deck logo toward the south-east while retaining a
+  safe right alignment so it is not clipped by Reveal's slide canvas.
+- Added a PostgreSQL store using `DBI` and `RPostgres`, automatic schema setup,
+  upserts for replaceable agreements, session-scoped reset, and revision polling
+  for synchronization across Shiny processes.
+- Installed the project-local Neon agent skills, configured the global Neon MCP
+  server for Codex, linked the repository to the existing Neon `production`
+  branch, and pulled PostgreSQL variables into ignored local environment files.
+- Configured pooled `DATABASE_URL` for application traffic and direct
+  `DATABASE_URL_UNPOOLED` for table setup. PostgreSQL is selected automatically
+  when the pooled URL is present; memory remains available by explicit override
+  or when no URL exists.
+- Provisioned no additional Neon services because the app currently uses only
+  PostgreSQL. Made no scoring or legacy-workflow changes.
+
 ## 6. Current scoring behavior
 
 The Shiny implementation mirrors the legacy logic:
@@ -268,8 +303,13 @@ No revised scoring formula has been implemented yet.
 
 - R source parsing succeeded.
 - English and Dutch translation key parity was checked.
-- All 16 current automated tests passed.
+- All 24 current automated tests passed.
 - `git diff --check` passed after generated-output cleanup.
+- Neon authentication and workspace linking succeeded for the existing
+  `production` branch. Pooled and direct connection variables were verified
+  without printing their values.
+- A clean R process created/read the PostgreSQL-backed session state, and the
+  complete Shiny app started against Neon and returned HTTP 200.
 - Browser testing covered:
   - English and Dutch;
   - light and dark themes;
@@ -293,20 +333,18 @@ No revised scoring formula has been implemented yet.
 - Compare old and candidate scores before changing production logic.
 - Update both scoring implementations if the legacy path remains active.
 
-### 2. Add persistent storage
+### 2. Complete the persistent-storage rehearsal
 
-The store interface is intentionally isolated. A production backend must
-preserve the existing operations for state, players, agreements, results
-publication, advancement, and reset. Reasonable candidates include Google
-Sheets for a low-complexity first deployment or a managed PostgreSQL service
-for stronger concurrency and auditability.
+The PostgreSQL adapter is linked to a managed Neon database. Run all three rounds
+from multiple browser sessions, restart the R process, and confirm state
+persists. Decide retention and deletion policy before storing classroom data.
 
 ### 3. Prepare shinyapps.io deployment
 
-- Choose the persistent backend.
-- Configure `STAFF_PIN` as a deployment secret.
+- Configure the Neon `DATABASE_URL`, the production `STAFF_PIN`, and any
+  explicit storage override for shinyapps.io without committing them.
 - Remove reliance on the `demo` fallback.
-- Add dependency management, preferably `renv`.
+- Add dependency management, preferably `renv`, including `RPostgres`.
 - Test concurrent sessions and reconnect behavior.
 - Confirm the static presentation assets are included in the deployment
   bundle.
@@ -329,6 +367,6 @@ for stronger concurrency and auditability.
   Sheet authorization.
 - Do not edit generated HTML as the primary source.
 - Do not reintroduce player names without explicit authorization.
-- Do not call the in-memory prototype production-ready.
+- Do not call the online prototype production-ready until the real database,
+  secrets, restart behavior, and concurrent classroom simulation are verified.
 - Do not modify scoring incidentally; it is a pedagogical design decision.
-

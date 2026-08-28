@@ -111,8 +111,18 @@ corresponding `.qmd`, R, CSS, or JavaScript source and render again.
   budget, price, or round constants through the UI.
 - Keep scoring pure and testable in `R/scoring.R`.
 - Keep persistence behind the interface returned by `create_game_store()`.
-- The only implemented backend is currently `memory`; its data disappears when
-  the R process stops.
+- Implemented backends are `memory` and `postgres`. Memory disappears when the
+  R process stops; PostgreSQL uses `DATABASE_URL` or standard `PG*` variables.
+- A configured `DATABASE_URL` selects PostgreSQL automatically unless
+  `GAME_STORAGE_MODE` overrides it. Use the pooled `DATABASE_URL` for app
+  traffic and `DATABASE_URL_UNPOOLED` for schema work when Neon supplies both.
+- Neon workspace context and credentials belong only in ignored `.neon`,
+  `.env.local`, and `.Renviron` files. The app currently uses only Lakebase
+  PostgreSQL; do not provision other Neon services without an application need.
+- Keep database credentials and `STAFF_PIN` out of source files and generated
+  deployment artifacts intended for version control.
+- `session_id` scopes all PostgreSQL rows. Change it deliberately for a new
+  classroom run and do not reuse another active class's identifier.
 - Do not describe the prototype as production-ready until persistent storage,
   deployment configuration, and a non-demo staff PIN are implemented and
   verified.
@@ -215,7 +225,6 @@ The most likely future work is:
 
 1. agree on a revised scoring model;
 2. add explicit agreement/no-agreement status;
-3. implement persistent storage suitable for shinyapps.io;
+3. exercise PostgreSQL persistence across a multi-browser classroom rehearsal;
 4. add deployment configuration and production secrets;
 5. conduct a multi-browser classroom simulation before live use.
-

@@ -3,3 +3,7 @@
 .RData
 .Ruserdata
 eshpm.serious.game@gmail.com
+.env
+.Renviron
+.neon
+.env.local
