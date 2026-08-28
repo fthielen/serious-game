@@ -39,6 +39,7 @@ Before editing:
 | English and Dutch interface copy | `R/i18n.R` |
 | Shiny scoring implementation | `R/scoring.R` |
 | Shiny state/storage contract | `R/storage.R` |
+| Connect Cloud deployment dependencies and file allowlist | `manifest.json` |
 | App styling | `www/styles.css` |
 | Live results-deck styling and controls | `www/presentation.css`, `www/presentation.js` |
 | Shared logo served by Shiny | `www/eshpm-logo.png` |
@@ -131,6 +132,11 @@ corresponding `.qmd`, R, CSS, or JavaScript source and render again.
 - Staff authentication uses `STAFF_PIN`. The `demo` fallback is local-only and
   must never be used for a public deployment.
 - The presentation route is `?view=results&lang=<en|nl>&theme=<light|dark>`.
+- `manifest.json` deliberately deploys only `app.R`, `config.R`, `R/`, and
+  `www/`. Never add `.Renviron`, `.env.local`, `.neon`, or legacy workflow files
+  to the deployment manifest as a side effect of regeneration.
+- Keep the manifest's R platform at a version supported by Connect Cloud and
+  verify that `shiny`, `DBI`, and `RPostgres` remain declared after regeneration.
 
 ## Scoring-change policy
 

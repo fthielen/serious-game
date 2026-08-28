@@ -99,6 +99,33 @@ still needs a tested secret-delivery method and a concurrent multi-browser
 rehearsal. Credentials must be handled deliberately before deployment rather
 than added to `config.R`.
 
+### Free online deployment
+
+The Shiny prototype is prepared for the free Posit Connect Cloud plan. The plan
+requires a public GitHub repository. The tracked [`manifest.json`](manifest.json)
+contains an explicit deployment allowlist: `app.R`, `config.R`, `R/`, and
+`www/`. Legacy calculations, source presentations, tests, agent files, and local
+environment files remain in the repository but are not included in the running
+application image.
+
+To publish:
+
+1. Sign in to [Posit Connect Cloud](https://connect.posit.cloud/) and choose
+   **Publish → Shiny**.
+2. Connect the GitHub repository, select the `main` branch, and choose `app.R`
+   as the primary file.
+3. Add `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, and a non-demo `STAFF_PIN` as
+   content variables. Do not add `GAME_STORAGE_MODE`; the configured database
+   URL selects PostgreSQL automatically.
+4. Publish and open the generated public URL.
+5. Before classroom use, rehearse with separate HCP, HTD, and facilitator
+   browsers, then reset the configured session from the staff area.
+
+Connect Cloud currently supports R through 4.6.0, so the manifest is pinned to
+that version even when generated locally with a newer patch release. If the
+manifest is regenerated, retain a platform version supported by Connect Cloud
+and confirm that `shiny`, `DBI`, and `RPostgres` remain listed.
+
 ### Language, theme, and visual design
 
 The EN/NL and light/dark controls are in the shared app header, so they remain

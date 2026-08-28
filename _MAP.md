@@ -1,6 +1,6 @@
 # Project map and implementation history
 
-Last updated: 2026-08-27
+Last updated: 2026-08-28
 
 This document gives future maintainers and AI agents a compact map of the
 repository, records the work already completed, and separates current behavior
@@ -274,6 +274,19 @@ Shiny processes and browsers see each other's changes.
   or when no URL exists.
 - Provisioned no additional Neon services because the app currently uses only
   PostgreSQL. Made no scoring or legacy-workflow changes.
+
+### Phase J — free cloud deployment preparation
+
+- Merged the validated `improvement1` branch into `main` and pushed both branch
+  tips to GitHub.
+- Chose Posit Connect Cloud Free as the first online host, using a public GitHub
+  repository and public application URL.
+- Added `manifest.json` with an explicit 12-file runtime allowlist containing
+  only `app.R`, `config.R`, `R/`, and `www/`.
+- Confirmed that the manifest includes `shiny`, `DBI`, and `RPostgres`, contains
+  no credentials, and excludes local Neon context and environment files.
+- Pinned the deployment platform to R 4.6.0, the newest Connect Cloud-supported
+  R version at the time of preparation.
 
 ## 6. Current scoring behavior
 
