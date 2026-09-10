@@ -300,7 +300,7 @@ Shiny processes and browsers see each other's changes.
 ### Phase K — tutor-level controls and round timer
 
 - Replaced the separate start, previous, selected-group, and global advancement
-  buttons with one **Next round for all** action scoped by tutor.
+  buttons with one **Next round for all your groups** action scoped by tutor.
 - Removed negotiation-group selection from round control; all groups belonging
   to the selected tutor advance together, including from the lobby and into the
   finished state.
