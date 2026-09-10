@@ -21,7 +21,10 @@ The first prototype implements the central classroom interaction:
 
 - students join by tutor, negotiation group, and HCP/HTD role;
 - staff unlock a protected control area with a PIN;
-- staff start lobby groups separately from advancing active groups;
+- each tutor advances all of their negotiation groups with one forward-only
+  control;
+- the staff area includes a browser-local stopwatch with start, stop, reset,
+  and an optional beep at a chosen elapsed minute;
 - new rounds appear automatically in connected student sessions;
 - confidential information is rendered only for the intended role;
 - one player submits the agreement for a negotiation group and round after a
@@ -94,10 +97,9 @@ session's state from another. The staff reset removes only the configured
 session's players, agreements, and progress.
 
 Do not commit a connection URL or staff PIN. The local Neon connection does not
-automatically transfer its credentials to shinyapps.io: a public deployment
-still needs a tested secret-delivery method and a concurrent multi-browser
-rehearsal. Credentials must be handled deliberately before deployment rather
-than added to `config.R`.
+automatically transfer its credentials to Connect Cloud: configure them as
+encrypted content variables and complete a concurrent multi-browser rehearsal.
+Credentials must be handled deliberately rather than added to `config.R`.
 
 ### Free online deployment
 
@@ -182,6 +184,19 @@ quarto render before_game_nl.qmd \
 
 The closing deck is part of `app.R`; it does not render or read the legacy
 `presentations/after_game.qmd` workflow.
+
+### Tutor controls and timer
+
+The round control is intentionally tutor-level: select a tutor and use **Next
+round for all** to move every negotiation group belonging to that tutor from
+the lobby through rounds 1–3 and then to the finished state. Individual groups
+cannot be moved separately, and there is no backward control.
+
+The staff stopwatch runs locally in each tutor's browser and does not write to
+PostgreSQL. **Start timer** begins or pauses elapsed time, while **Reset timer**
+returns it to `00:00`. Tutors can enable **Play beep at** and choose an elapsed
+minute. Browser audio is initialized by the tutor's button click; volume still
+depends on the computer and classroom sound settings.
 
 Run its automated checks with:
 
@@ -405,7 +420,7 @@ locally before publishing.
   in the current Form-based R files.
 - There is no dependency lockfile or automated test for the Form/Sheet schema.
 - Form responses are filtered by date rather than by a dedicated session ID.
-- The Shiny prototype has automated scoring/state checks, but its live state is
-  not persistent until the Google Sheets adapter is added.
+- The online Shiny prototype persists live state in Neon PostgreSQL. A complete
+  concurrent classroom rehearsal and recovery test are still outstanding.
 
 These are useful starting points for the next round of project improvements.

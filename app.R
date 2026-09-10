@@ -238,12 +238,7 @@ server <- function(input, output, session) {
 
   selected_tutors <- reactive({
     req(input$staff_tutor)
-    if (input$staff_tutor == "__all__") game_config$tutors else input$staff_tutor
-  })
-
-  selected_groups <- reactive({
-    req(input$staff_group)
-    if (input$staff_group == "__all__") game_config$groups else input$staff_group
+    input$staff_tutor
   })
 
   live_results <- reactive({
@@ -563,17 +558,51 @@ server <- function(input, output, session) {
           class = "game-card feature-card",
           tags$span(class = "feature-icon", "↗"),
           h3(t("round_controls")),
-          fluidRow(
-            column(6, selectInput("staff_tutor", t("tutor"), choices = c(stats::setNames("__all__", t("all_tutors")), game_config$tutors))),
-            column(6, selectInput("staff_group", t("negotiation_group"), choices = c(stats::setNames("__all__", t("all_groups")), game_config$groups)))
+          p(t("round_controls_intro")),
+          selectInput("staff_tutor", t("tutor"), choices = game_config$tutors),
+          div(class = "button-row", actionButton("advance_all", t("next_everyone"), class = "btn-primary")),
+          div(class = "round-reset-row", actionButton("reset_game", t("reset_prototype"), class = "btn-danger"))
+        ),
+        div(
+          class = "game-card timer-card rainbow-frame",
+          div(
+            class = "timer-copy",
+            tags$span(class = "feature-icon", "◷"),
+            h3(t("round_timer")),
+            p(t("round_timer_intro")),
+            p(class = "timer-local-note", t("timer_local_note"))
           ),
           div(
-            class = "button-row",
-            actionButton("start_round", t("start_selection"), class = "btn-success"),
-            actionButton("previous_round", t("previous_round"), class = "btn-default"),
-            actionButton("next_round", t("next_selection"), class = "btn-primary"),
-            actionButton("advance_all", t("next_everyone"), class = "btn-default"),
-            actionButton("reset_game", t("reset_prototype"), class = "btn-danger")
+            id = "staff-round-timer",
+            class = "timer-panel",
+            div(
+              class = "timer-readout",
+              tags$span(id = "timer-elapsed", class = "timer-value", `aria-label` = t("elapsed_time"), "00:00"),
+              tags$span(class = "timer-label", t("elapsed_time"))
+            ),
+            div(
+              class = "button-row timer-buttons",
+              tags$button(
+                id = "timer-start-stop", type = "button", class = "btn btn-primary",
+                `data-label-start` = t("timer_start"), `data-label-stop` = t("timer_stop"),
+                t("timer_start")
+              ),
+              tags$button(id = "timer-reset", type = "button", class = "btn btn-default", t("timer_reset"))
+            ),
+            div(
+              class = "timer-beep-row",
+              tags$label(
+                class = "timer-beep-toggle",
+                tags$input(id = "timer-beep-enabled", type = "checkbox"),
+                tags$span(t("timer_beep_at"))
+              ),
+              tags$input(
+                id = "timer-beep-minutes", class = "form-control timer-minute-input",
+                type = "number", min = "1", max = "180", step = "1", value = "10",
+                `aria-label` = t("timer_beep_minutes_label")
+              ),
+              tags$span(class = "timer-minute-label", t("minutes"))
+            )
           )
         )
       ),
@@ -608,10 +637,13 @@ server <- function(input, output, session) {
     ))
   })
 
-  observeEvent(input$previous_round, { req(staff_authenticated()); store$advance(selected_tutors(), selected_groups(), -1L) })
-  observeEvent(input$start_round, { req(staff_authenticated()); store$advance(selected_tutors(), selected_groups(), 1L, from_rounds = 0L) })
-  observeEvent(input$next_round, { req(staff_authenticated()); store$advance(selected_tutors(), selected_groups(), 1L, from_rounds = seq_along(game_config$rounds)) })
-  observeEvent(input$advance_all, { req(staff_authenticated()); store$advance(game_config$tutors, game_config$groups, 1L, from_rounds = seq_along(game_config$rounds)) })
+  observeEvent(input$advance_all, {
+    req(staff_authenticated())
+    store$advance(
+      selected_tutors(), game_config$groups, 1L,
+      from_rounds = 0L:length(game_config$rounds)
+    )
+  })
   observeEvent(input$reset_game, {
     req(staff_authenticated())
     showModal(modalDialog(title = t("reset_title"), t("reset_text"), footer = tagList(modalButton(t("cancel")), actionButton("confirm_reset", t("reset_data"), class = "btn-danger"))))

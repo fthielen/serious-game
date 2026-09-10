@@ -198,6 +198,22 @@ label, .control-label { color: var(--eshpm-ink); font-weight: 800; margin-bottom
 .feature-icon { color: var(--eshpm-purple); display: block; font-size: 1.7rem; margin-bottom: 22px; }
 .feature-card h3, .dashboard-card h3 { margin-top: 0; }
 .button-row { display: flex; flex-wrap: wrap; gap: 9px; }
+.round-reset-row { border-top: 1px solid var(--border); margin-top: 24px; padding-top: 18px; }
+.timer-card { align-items: center; display: grid; gap: clamp(24px, 5vw, 70px); grid-column: 1 / -1; grid-template-columns: minmax(240px, 0.8fr) minmax(420px, 1.2fr); min-height: 0; }
+.timer-copy .feature-icon { margin-bottom: 10px; }
+.timer-copy h3 { margin: 0 0 8px; }
+.timer-copy p { margin-bottom: 6px; }
+.timer-local-note { font-size: 0.88rem; }
+.timer-panel { align-items: center; background: var(--surface-soft); border: 1px solid var(--border); border-radius: 14px; display: grid; gap: 18px; grid-template-columns: minmax(150px, 0.75fr) minmax(220px, 1.25fr); padding: 22px; }
+.timer-readout { display: flex; flex-direction: column; grid-row: span 2; }
+.timer-value { color: var(--eshpm-purple); font-size: clamp(3rem, 7vw, 5.4rem); font-variant-numeric: tabular-nums; font-weight: 900; letter-spacing: -0.055em; line-height: 0.95; }
+.timer-label { color: var(--muted); font-size: 0.82rem; font-weight: 800; letter-spacing: 0.08em; margin-top: 8px; text-transform: uppercase; }
+.timer-buttons { align-self: end; }
+.timer-beep-row { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; }
+.timer-beep-toggle { align-items: center; display: inline-flex; gap: 8px; margin: 0; }
+.timer-beep-toggle input { accent-color: var(--eshpm-purple); height: 18px; margin: 0; width: 18px; }
+.timer-minute-input.form-control { display: inline-block; min-height: 40px; padding: 7px 9px; width: 76px; }
+.timer-minute-label { color: var(--muted); font-weight: 700; }
 .demo-warning { background: #fff2cd; border-left: 4px solid #e2a720; border-radius: 5px; color: #3d330d; margin-bottom: 22px; padding: 13px 15px; }
 .storage-warning { color: #a33a22; font-size: 0.92rem; font-weight: 700; margin-top: -4px; }
 
@@ -230,6 +246,8 @@ label, .control-label { color: var(--eshpm-ink); font-weight: 800; margin-bottom
   .hero-grid { padding-top: 10px; }
   .player-header, .staff-heading { align-items: flex-start; flex-direction: column; gap: 16px; }
   .feature-card { min-height: auto; }
+  .timer-card, .timer-panel { grid-template-columns: 1fr; }
+  .timer-readout { grid-row: auto; }
   .round-heading { align-items: flex-start; flex-direction: column; gap: 2px; }
   .hospital-production-panel { grid-template-columns: 1fr; }
 }

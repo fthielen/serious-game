@@ -25,6 +25,23 @@ test_that("rounds advance and stop after the final round", {
   expect_equal(selected$status, "Finished")
 })
 
+test_that("tutor-level advancement moves every group for only that tutor", {
+  store <- create_memory_store(game_config)
+
+  store$advance("Tutor 1", game_config$groups, from_rounds = 0L:length(game_config$rounds))
+  state <- store$get_state()
+
+  expect_true(all(state$current_round[state$tutor == "Tutor 1"] == 1L))
+  expect_true(all(state$current_round[state$tutor == "Tutor 2"] == 0L))
+
+  for (index in seq_len(length(game_config$rounds))) {
+    store$advance("Tutor 1", game_config$groups, from_rounds = 0L:length(game_config$rounds))
+  }
+  state <- store$get_state()
+  expect_true(all(state$current_round[state$tutor == "Tutor 1"] == length(game_config$rounds) + 1L))
+  expect_true(all(state$status[state$tutor == "Tutor 1"] == "Finished"))
+})
+
 test_that("starting and advancing are distinct operations", {
   store <- create_memory_store(game_config)
 

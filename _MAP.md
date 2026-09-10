@@ -1,6 +1,6 @@
 # Project map and implementation history
 
-Last updated: 2026-08-28
+Last updated: 2026-09-10
 
 This document gives future maintainers and AI agents a compact map of the
 repository, records the work already completed, and separates current behavior
@@ -10,9 +10,8 @@ from proposed future work. For operational rules, read [`AGENTS.md`](AGENTS.md).
 
 The project began as a Google Form/Sheet workflow and now also contains a Shiny
 prototype. The prototype has memory and PostgreSQL storage implementations and
-is linked locally to a Neon PostgreSQL project. It is not yet ready for a public
-classroom deployment because shinyapps.io secret delivery and the concurrent
-classroom test are not yet configured.
+is linked to a Neon PostgreSQL project and deployed publicly on Posit Connect
+Cloud. A concurrent classroom rehearsal is still required before live use.
 
 ```mermaid
 flowchart TB
@@ -99,11 +98,14 @@ flowchart TB
 
 1. Open the Staff view and enter `STAFF_PIN`.
 2. Open the static introduction deck in the active language and theme.
-3. Start selected lobby groups or advance active groups forward/backward.
-4. Monitor group status, connected role sessions, submissions, and calculated
+3. Select a tutor and advance all of that tutor's negotiation groups using the
+   single forward-only round control.
+4. Start, stop, or reset the browser-local stopwatch and optionally schedule a
+   beep at a chosen elapsed minute.
+5. Monitor group status, connected role sessions, submissions, and calculated
    results.
-5. After checking agreements, publish/open the live results presentation.
-6. Reset prototype state after testing or at the end of a local session.
+6. After checking agreements, publish/open the live results presentation.
+7. Reset prototype state after testing or at the end of a local session.
 
 ### State model
 
@@ -295,6 +297,18 @@ Shiny processes and browsers see each other's changes.
 - Enabled automatic publishing from pushes to `main` and stored all three
   deployment variables in Connect Cloud rather than in version control.
 
+### Phase K — tutor-level controls and round timer
+
+- Replaced the separate start, previous, selected-group, and global advancement
+  buttons with one **Next round for all** action scoped by tutor.
+- Removed negotiation-group selection from round control; all groups belonging
+  to the selected tutor advance together, including from the lobby and into the
+  finished state.
+- Added a bilingual browser-local staff stopwatch with start/stop, reset, and
+  an optional double beep at a configurable elapsed minute.
+- Kept timer state and audio entirely client-side so the feature adds no
+  PostgreSQL traffic and each tutor controls their own clock.
+
 ## 6. Current scoring behavior
 
 The Shiny implementation mirrors the legacy logic:
@@ -387,6 +401,6 @@ persists. Decide retention and deletion policy before storing classroom data.
   Sheet authorization.
 - Do not edit generated HTML as the primary source.
 - Do not reintroduce player names without explicit authorization.
-- Do not call the online prototype production-ready until the real database,
-  secrets, restart behavior, and concurrent classroom simulation are verified.
+- Do not call the online prototype classroom-ready until restart behavior and a
+  concurrent classroom simulation are verified.
 - Do not modify scoring incidentally; it is a pedagogical design decision.
