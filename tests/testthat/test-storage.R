@@ -35,6 +35,18 @@ test_that("tutor round markers are forward-only and scoped to one tutor", {
   expect_equal(store$record_next_round(second)$round, 1L)
 })
 
+test_that("rapid tutor clicks can record separate rounds at the same instant", {
+  instant <- as.POSIXct("2026-09-21 09:00:00", tz = "UTC")
+  store <- create_memory_store(game_config, clock = function() instant)
+  tutor <- game_config$tutors[[1]]
+  events <- lapply(seq_len(length(game_config$rounds) + 1L), function(index) {
+    store$record_next_round(tutor)
+  })
+  expect_equal(vapply(events, function(event) event$round[[1]], integer(1)), 1:4)
+  expect_true(all(vapply(events, function(event) event$recorded_at[[1]] == instant, logical(1))))
+  expect_null(store$record_next_round(tutor))
+})
+
 test_that("submissions are append-only and a retried ID is idempotent", {
   store <- create_memory_store(game_config)
   first <- test_submission()

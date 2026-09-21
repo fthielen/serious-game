@@ -204,6 +204,9 @@ verbal cue, students select **Continue to Round …** in their own browser. Ther
 is no live round synchronization or backward tutor control. A tutor who
 refreshes the page should coordinate with colleagues before clicking again:
 the next click records that tutor's next unrecorded event in the database.
+There is no minimum waiting time between clicks, including during a rehearsal.
+After Round 1, Round 2, Round 3, and game end have all been recorded, further
+clicks cannot create another round marker for that tutor.
 
 The timestamp for the next round closes the previous round. Round 3 ends at
 the recorded game-end timestamp, or when a presentation link is created if

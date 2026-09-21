@@ -529,7 +529,7 @@ server <- function(input, output, session) {
     agreement <- pending_agreement()
     req(!is.null(agreement))
     receipt <- tryCatch(store$save_agreement(agreement), error = function(error) {
-      showNotification(t("save_failed"), type = "error", duration = NULL)
+      showNotification(t("save_failed"), type = "error", duration = 8)
       NULL
     })
     if (is.null(receipt)) return()
@@ -677,7 +677,7 @@ server <- function(input, output, session) {
   observeEvent(input$create_results_presentation, {
     req(staff_authenticated())
     record <- tryCatch(store$create_presentation(), error = function(error) {
-      showNotification(t("save_failed"), type = "error", duration = NULL)
+      showNotification(t("save_failed"), type = "error", duration = 8)
       NULL
     })
     if (is.null(record)) return()
@@ -705,10 +705,11 @@ server <- function(input, output, session) {
   observeEvent(input$confirm_next_round, {
     req(staff_authenticated(), input$staff_tutor)
     event <- tryCatch(store$record_next_round(input$staff_tutor), error = function(error) {
-      showNotification(t("save_failed"), type = "error", duration = NULL)
-      NULL
+      showNotification(t("save_failed"), type = "error", duration = 8)
+      structure(list(), class = "round_save_error")
     })
     removeModal()
+    if (inherits(event, "round_save_error")) return()
     if (is.null(event)) {
       showNotification(t("no_more_rounds"), type = "warning")
       return()
@@ -726,7 +727,7 @@ server <- function(input, output, session) {
       last_round_event(NULL)
       removeModal()
       showNotification(t("reset_done"), type = "warning")
-    }, error = function(error) showNotification(t("save_failed"), type = "error", duration = NULL))
+    }, error = function(error) showNotification(t("save_failed"), type = "error", duration = 8))
   })
 }
 

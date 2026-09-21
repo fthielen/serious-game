@@ -1306,13 +1306,13 @@
   },
   "files": {
     "app.R": {
-      "checksum": "9f823a99cf6f5e5a681513e104a0d228"
+      "checksum": "c24aef870126e0e0d7cd38a607c10c5c"
     },
     "config.R": {
-      "checksum": "a5028b20bf1db81b74e1ffc1c65faa87"
+      "checksum": "88a8ffb1f521247d0bb615ff9d7df037"
     },
     "R/i18n.R": {
-      "checksum": "6a4796ff0e51231122b92427e7ec417c"
+      "checksum": "87802e3caec84379ffee1fbda9846840"
     },
     "R/scoring.R": {
       "checksum": "f39d6bbe317826e56b47bc51ce9954dc"
