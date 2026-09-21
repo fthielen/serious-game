@@ -337,6 +337,19 @@ creates new `hta_game_submission_log`, `hta_game_round_events`, and
 - The static opening decks, legacy Form/Sheet workflow, and scoring formula
   were not changed.
 
+### Phase M — reliable PostgreSQL submissions
+
+- Reproduced intermittent failed writes through the Neon pooled URL with
+  RPostgres: repeated parameterized submissions reported missing or mismatched
+  unnamed prepared statements.
+- Verified 24 consecutive submissions across eight fresh store instances using
+  the direct URL without those errors, then removed the disposable test rows.
+- Switched all low-volume RPostgres actions to `DATABASE_URL_UNPOOLED`, not only
+  schema setup. The pooled URL remains configured for automatic backend
+  selection, but a pooled-only Neon configuration now fails clearly.
+- Left the submission log, timing rules, scoring, and existing classroom data
+  unchanged.
+
 ## 6. Current scoring behavior
 
 The Shiny implementation mirrors the legacy logic:

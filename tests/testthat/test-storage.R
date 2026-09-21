@@ -22,6 +22,14 @@ test_that("PostgreSQL URLs are parsed without logging credentials", {
   expect_equal(args$sslmode, "require")
 })
 
+test_that("RPostgres app traffic chooses a direct connection", {
+  pooled <- "postgresql://game:secret@ep-example-pooler.eu.neon.tech/classroom?sslmode=require"
+  direct <- "postgresql://game:secret@ep-example.eu.neon.tech/classroom?sslmode=require"
+  expect_equal(postgres_app_connection_args(pooled, direct)$host, "ep-example.eu.neon.tech")
+  expect_error(postgres_app_connection_args(pooled, ""), "DATABASE_URL_UNPOOLED")
+  expect_equal(postgres_app_connection_args(direct, "")$host, "ep-example.eu.neon.tech")
+})
+
 test_that("tutor round markers are forward-only and scoped to one tutor", {
   store <- create_memory_store(game_config)
   first <- game_config$tutors[[1]]

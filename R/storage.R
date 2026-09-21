@@ -189,14 +189,29 @@ postgres_connection_args <- function(url_env = "DATABASE_URL", allow_pg_fallback
   args
 }
 
+postgres_app_connection_args <- function(
+  pooled_url = Sys.getenv("DATABASE_URL", unset = ""),
+  direct_url = Sys.getenv("DATABASE_URL_UNPOOLED", unset = "")
+) {
+  # RPostgres parameter binding intermittently fails through Neon's transaction
+  # pooler, so this low-traffic app uses a short-lived direct connection.
+  if (nzchar(direct_url)) return(parse_postgres_url(direct_url))
+  if (nzchar(pooled_url)) {
+    args <- parse_postgres_url(pooled_url)
+    if (grepl("-pooler", args$host, fixed = TRUE)) {
+      stop("RPostgres requires DATABASE_URL_UNPOOLED for this app; a pooled-only URL can fail parameterized queries.")
+    }
+    return(args)
+  }
+  postgres_connection_args("DATABASE_URL")
+}
+
 create_postgres_store <- function(config) {
   if (!requireNamespace("DBI", quietly = TRUE) || !requireNamespace("RPostgres", quietly = TRUE)) {
     stop("PostgreSQL storage requires the DBI and RPostgres packages.")
   }
-  connection_args <- postgres_connection_args("DATABASE_URL")
-  schema_args <- if (nzchar(Sys.getenv("DATABASE_URL_UNPOOLED", unset = ""))) {
-    postgres_connection_args("DATABASE_URL_UNPOOLED", allow_pg_fallback = FALSE)
-  } else connection_args
+  connection_args <- postgres_app_connection_args()
+  schema_args <- connection_args
   session_id <- config$session_id
   schema_ready <- FALSE
   connect <- function(args) do.call(DBI::dbConnect, c(list(drv = RPostgres::Postgres()), args))

@@ -81,8 +81,13 @@ npx neon@latest link --project-id YOUR_PROJECT_ID -y
 npx neon@latest env pull --file .Renviron --service postgres
 ```
 
-The resulting `DATABASE_URL` is the pooled URL used for normal app traffic.
-`DATABASE_URL_UNPOOLED` is the direct connection used for lazy table setup.
+Neon supplies a pooled `DATABASE_URL` and direct `DATABASE_URL_UNPOOLED`.
+This RPostgres app uses the direct URL for both submissions and schema setup.
+Repeated parameterized submissions failed intermittently through the pooled
+endpoint during testing; this low-traffic classroom app opens a short-lived
+direct connection per database action. Keep both variables configured because
+`DATABASE_URL` still selects PostgreSQL mode automatically. A pooled-only Neon
+configuration now reports a setup error instead of saving unreliably.
 No Neon Auth, Data API, Object Storage, Functions, or AI Gateway service is
 needed by this version of the app.
 

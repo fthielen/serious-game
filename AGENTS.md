@@ -119,8 +119,10 @@ corresponding `.qmd`, R, CSS, or JavaScript source and render again.
 - Implemented backends are `memory` and `postgres`. Memory disappears when the
   R process stops; PostgreSQL uses `DATABASE_URL` or standard `PG*` variables.
 - A configured `DATABASE_URL` selects PostgreSQL automatically unless
-  `GAME_STORAGE_MODE` overrides it. Use the pooled `DATABASE_URL` for app
-  traffic and `DATABASE_URL_UNPOOLED` for schema work when Neon supplies both.
+  `GAME_STORAGE_MODE` overrides it. For Neon, use `DATABASE_URL_UNPOOLED` for
+  all RPostgres queries, including app traffic and schema work: repeated
+  parameterized writes failed intermittently through the pooled endpoint.
+  A pooled-only Neon URL must fail clearly rather than save unreliably.
 - Neon workspace context and credentials belong only in ignored `.neon`,
   `.env.local`, and `.Renviron` files. The app currently uses only Lakebase
   PostgreSQL; do not provision other Neon services without an application need.
