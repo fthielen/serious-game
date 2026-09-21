@@ -61,9 +61,84 @@ main_ui <- fluidPage(
   tags$main(class = "app-shell", uiOutput("app_body"))
 )
 
-results_presentation_ui <- function(language = "en", theme = "light") {
+presentation_table <- function(data) {
+  tags$table(
+    class = "table table-striped",
+    tags$thead(tags$tr(lapply(names(data), tags$th))),
+    tags$tbody(lapply(seq_len(nrow(data)), function(index) {
+      tags$tr(lapply(data[index, , drop = TRUE], function(value) tags$td(as.character(value))))
+    }))
+  )
+}
+
+presentation_tables <- function(snapshot, language) {
+  t <- function(key, ...) tr(key, language, ...)
+  euro <- function(value) format_euro(value, language)
+  results <- calculate_scores(snapshot$agreements, game_config$rounds)
+  audit <- snapshot$audit
+  audit_rows <- lapply(game_config$tutors, function(tutor) {
+    lapply(seq_along(game_config$rounds), function(round_number) {
+      rows <- audit[audit$tutor == tutor & audit$round == round_number, , drop = FALSE]
+      groups_with <- function(status) {
+        groups <- rows$group[rows$status == status]
+        if (length(groups)) paste(groups, collapse = ", ") else "—"
+      }
+      data.frame(
+        tutor = tutor, round = round_number,
+        scored = sum(rows$status %in% c("accepted", "marker_unverified")),
+        missing = groups_with("missing"),
+        outside = groups_with("outside_window"),
+        unmarked = groups_with("marker_unverified"),
+        cutoff = format(rows$cutoff_at[[1]], "%H:%M:%S", tz = "UTC")
+      )
+    })
+  })
+  audit_summary <- do.call(rbind, unlist(audit_rows, recursive = FALSE))
+  names(audit_summary) <- c(t("tutor"), t("round"), t("scored"), t("missing_groups"),
+                            t("outside_window_groups"), t("unmarked_groups"), t("cutoff_utc"))
+  if (nrow(results) == 0L) {
+    no_results <- stats::setNames(data.frame(t("no_agreements")), "")
+    return(list(results = results, audit = audit_summary, overspent = no_results,
+                crowding = no_results, untreated = no_results, average = no_results,
+                scores = no_results))
+  }
+  overspent <- results[results$government_balance < 0, , drop = FALSE]
+  if (nrow(overspent)) {
+    overspent <- stats::aggregate(round ~ tutor + group, data = overspent, FUN = length)
+    names(overspent) <- c(t("tutor"), t("group"), t("rounds_over_budget"))
+  } else overspent <- stats::setNames(data.frame(t("no_overspend")), "")
+  crowding <- results[results$crowd_out < 0, c("tutor", "group", "round", "crowd_out"), drop = FALSE]
+  if (nrow(crowding)) {
+    crowding$crowd_out <- round(crowding$crowd_out, 1)
+    names(crowding) <- c(t("tutor"), t("group"), t("round"), t("qalys_lost"))
+  } else crowding <- stats::setNames(data.frame(t("no_crowding")), "")
+  untreated <- results[results$patients_untreated > 0, c("tutor", "group", "round", "patients_untreated"), drop = FALSE]
+  if (nrow(untreated)) names(untreated) <- c(t("tutor"), t("group"), t("round"), t("untreated"))
+  else untreated <- stats::setNames(data.frame(t("all_treated")), "")
+  usable <- results[results$patients_treated > 0, , drop = FALSE]
+  if (nrow(usable)) {
+    usable$average_price <- usable$budget_impact / usable$patients_treated
+    split_prices <- split(usable$average_price, usable$round)
+    average <- data.frame(
+      round = as.integer(names(split_prices)),
+      mean = vapply(split_prices, mean, numeric(1)),
+      minimum = vapply(split_prices, min, numeric(1)),
+      maximum = vapply(split_prices, max, numeric(1))
+    )
+    for (column in c("mean", "minimum", "maximum")) average[[column]] <- vapply(average[[column]], euro, character(1))
+    names(average) <- c(t("round"), t("mean"), t("minimum"), t("maximum"))
+  } else average <- stats::setNames(data.frame(t("no_treated")), "")
+  scores <- results[order(results$tutor, results$group, results$round),
+                    c("tutor", "group", "round", "hcp_score", "htd_score"), drop = FALSE]
+  names(scores) <- c(t("tutor"), t("group"), t("round"), t("hcp_points"), t("htd_points"))
+  list(results = results, audit = audit_summary, overspent = overspent, crowding = crowding,
+       untreated = untreated, average = average, scores = scores)
+}
+
+results_presentation_ui <- function(language = "en", theme = "light", snapshot = NULL) {
   language <- safe_language(language)
   theme <- safe_theme(theme)
+  tables <- if (!is.null(snapshot)) presentation_tables(snapshot, language) else NULL
 
   fluidPage(
     class = "presentation-page",
@@ -75,7 +150,7 @@ results_presentation_ui <- function(language = "en", theme = "light") {
       tags$link(rel = "stylesheet", type = "text/css", href = "presentation.css"),
       tags$script(src = "presentation.js", defer = NA)
     ),
-    if (!store$is_results_published()) {
+    if (is.null(snapshot)) {
       div(
         class = "presentation-unavailable rainbow-frame",
         brand_mark(language),
@@ -98,7 +173,8 @@ results_presentation_ui <- function(language = "en", theme = "light") {
                 tags$span(class = "eyebrow", tr("course_team", language)),
                 h1(tr("app_title", language)),
                 h2(tr("results_reflection", language)),
-                uiOutput("presentation_summary")
+                p(class = "presentation-lead", tr("submitted_of", language, nrow(tables$results), nrow(snapshot$audit))),
+                p(class = "presentation-timestamp", tr("snapshot_as_of", language, format_live_time(snapshot$generated_at, language)))
               )
             )
           ),
@@ -117,11 +193,12 @@ results_presentation_ui <- function(language = "en", theme = "light") {
               )
             )
           ),
-          tags$section(class = "result-slide", div(class = "slide-content", tags$span(class = "eyebrow", tr("results_n", language, 1)), h1(tr("overspent_budget", language)), div(class = "result-table-frame rainbow-frame", tableOutput("presentation_overspent")))),
-          tags$section(class = "result-slide", div(class = "slide-content", tags$span(class = "eyebrow", tr("results_n", language, 2)), h1(tr("crowding_out", language)), div(class = "result-table-frame rainbow-frame", tableOutput("presentation_crowding_out")))),
-          tags$section(class = "result-slide", div(class = "slide-content", tags$span(class = "eyebrow", tr("results_n", language, 3)), h1(tr("untreated_patients", language)), div(class = "result-table-frame rainbow-frame", tableOutput("presentation_untreated")))),
-          tags$section(class = "result-slide", div(class = "slide-content", tags$span(class = "eyebrow", tr("results_n", language, 4)), h1(tr("average_price", language)), div(class = "result-table-frame rainbow-frame", tableOutput("presentation_average_price")))),
-          tags$section(class = "result-slide", div(class = "slide-content wide-slide", tags$span(class = "eyebrow", tr("results_n", language, 5)), h1(tr("points_group_round", language)), div(class = "result-table-frame rainbow-frame", tableOutput("presentation_scores")))),
+          tags$section(class = "result-slide", div(class = "slide-content wide-slide", tags$span(class = "eyebrow", tr("submission_timing", language)), h1(tr("submission_timing", language)), p(tr("timing_explanation", language)), div(class = "result-table-frame rainbow-frame", presentation_table(tables$audit)))),
+          tags$section(class = "result-slide", div(class = "slide-content", tags$span(class = "eyebrow", tr("results_n", language, 1)), h1(tr("overspent_budget", language)), div(class = "result-table-frame rainbow-frame", presentation_table(tables$overspent)))),
+          tags$section(class = "result-slide", div(class = "slide-content", tags$span(class = "eyebrow", tr("results_n", language, 2)), h1(tr("crowding_out", language)), div(class = "result-table-frame rainbow-frame", presentation_table(tables$crowding)))),
+          tags$section(class = "result-slide", div(class = "slide-content", tags$span(class = "eyebrow", tr("results_n", language, 3)), h1(tr("untreated_patients", language)), div(class = "result-table-frame rainbow-frame", presentation_table(tables$untreated)))),
+          tags$section(class = "result-slide", div(class = "slide-content", tags$span(class = "eyebrow", tr("results_n", language, 4)), h1(tr("average_price", language)), div(class = "result-table-frame rainbow-frame", presentation_table(tables$average)))),
+          tags$section(class = "result-slide", div(class = "slide-content wide-slide", tags$span(class = "eyebrow", tr("results_n", language, 5)), h1(tr("points_group_round", language)), div(class = "result-table-frame rainbow-frame", presentation_table(tables$scores)))),
           tags$section(
             class = "result-slide closing-slide",
             div(
@@ -139,7 +216,7 @@ results_presentation_ui <- function(language = "en", theme = "light") {
         div(
           class = "presentation-controls rainbow-frame",
           actionButton("previous_slide", tr("previous", language), class = "presentation-button"),
-          tags$span(id = "slide-counter", "1 / 8"),
+          tags$span(id = "slide-counter", "1 / 9"),
           actionButton("next_slide", tr("next", language), class = "presentation-button")
         )
       )
@@ -150,19 +227,25 @@ results_presentation_ui <- function(language = "en", theme = "light") {
 ui <- function(request) {
   query <- shiny::parseQueryString(request$QUERY_STRING %||% "")
   if (identical(query$view, "results")) {
-    results_presentation_ui(query$lang %||% "en", query$theme %||% "light")
+    snapshot <- tryCatch(store$get_presentation(query$token %||% ""), error = function(error) {
+      warning("Could not load presentation snapshot: ", conditionMessage(error))
+      NULL
+    })
+    results_presentation_ui(query$lang %||% "en", query$theme %||% "light", snapshot)
   } else {
     main_ui
   }
 }
 
 server <- function(input, output, session) {
-  player <- reactiveValues(joined = FALSE, id = NULL, tutor = NULL, group = NULL, role = NULL)
+  player <- reactiveValues(joined = FALSE, tutor = NULL, group = NULL, role = NULL, round = 0L)
   staff_authenticated <- reactiveVal(FALSE)
   active_view <- reactiveVal("play")
   language <- reactiveVal("en")
   theme <- reactiveVal("light")
   pending_agreement <- reactiveVal(NULL)
+  local_agreements <- reactiveVal(list())
+  last_round_event <- reactiveVal(NULL)
 
   observeEvent(session$clientData$url_search, {
     query <- shiny::parseQueryString(session$clientData$url_search %||% "")
@@ -180,11 +263,6 @@ server <- function(input, output, session) {
   round_summary <- function(round_config) round_config$public_summary[[language()]]
   round_confidential <- function(round_config, role) round_config$confidential[[language()]][[role]]
   euro <- function(value) format_euro(value, language())
-
-  observe({
-    invalidateLater(game_config$poll_interval_ms, session)
-    try(store$refresh(), silent = TRUE)
-  })
 
   observeEvent(input$nav_play, active_view("play"))
   observeEvent(input$nav_staff, active_view("staff"))
@@ -227,23 +305,6 @@ server <- function(input, output, session) {
 
   output$app_body <- renderUI({
     if (active_view() == "staff") uiOutput("staff_screen") else uiOutput("player_screen")
-  })
-
-  current_group_state <- reactive({
-    req(player$joined)
-    store$state_revision()
-    state <- store$get_state()
-    state[state$tutor == player$tutor & state$group == player$group, , drop = FALSE]
-  })
-
-  selected_tutors <- reactive({
-    req(input$staff_tutor)
-    input$staff_tutor
-  })
-
-  live_results <- reactive({
-    store$data_revision()
-    calculate_scores(store$get_agreements(), game_config$rounds)
   })
 
   output$player_screen <- renderUI({
@@ -294,29 +355,27 @@ server <- function(input, output, session) {
     }
 
     player$joined <- TRUE
-    player$id <- new_player_id()
     player$tutor <- input$player_tutor
     player$group <- input$player_group
     player$role <- input$player_role
-    store$register_player(data.frame(
-      player_id = player$id,
-      tutor = player$tutor,
-      group = player$group,
-      role = player$role,
-      joined_at = format(Sys.time(), tz = "UTC", usetz = TRUE),
-      stringsAsFactors = FALSE
-    ))
+    player$round <- 0L
+    local_agreements(list())
   })
 
   observeEvent(input$leave_game, {
     player$joined <- FALSE
-    player$id <- NULL
+    player$round <- 0L
+    local_agreements(list())
+  })
+
+  observeEvent(input$student_next_round, {
+    req(player$joined)
+    player$round <- min(length(game_config$rounds) + 1L, player$round + 1L)
   })
 
   output$round_panel <- renderUI({
-    state <- current_group_state()
-    req(nrow(state) == 1)
-    round_number <- state$current_round[[1]]
+    req(player$joined)
+    round_number <- player$round
 
     if (round_number == 0L) {
       return(div(
@@ -324,7 +383,7 @@ server <- function(input, output, session) {
         tags$span(class = "status-pill", t("lobby")),
         h2(t("waiting_title")),
         p(t("waiting_text")),
-        div(class = "waiting-pulse", tags$span(), tags$span(), tags$span())
+        actionButton("student_next_round", t("continue_round", 1L), class = "btn-primary btn-lg")
       ))
     }
 
@@ -333,19 +392,14 @@ server <- function(input, output, session) {
         class = "game-card rainbow-frame",
         tags$span(class = "status-pill finished", t("finished")),
         h2(t("negotiations_complete")),
-        p(t("results_below")),
-        tableOutput("player_results")
+        p(t("results_below"))
       ))
     }
 
     round_config <- game_config$rounds[[round_number]]
     confidential <- round_confidential(round_config, player$role)
-    existing <- store$get_agreements()
-    existing <- existing[
-      existing$tutor == player$tutor & existing$group == player$group & existing$round == round_number,
-      , drop = FALSE
-    ]
-    field_value <- function(name, fallback = 0) if (nrow(existing) == 1) existing[[name]][[1]] else fallback
+    existing <- local_agreements()[[as.character(round_number)]]
+    field_value <- function(name, fallback = 0) if (!is.null(existing)) existing[[name]][[1]] else fallback
     can_submit <- round_number < 3L || identical(player$role, "HCP")
 
     div(
@@ -393,16 +447,22 @@ server <- function(input, output, session) {
           column(if (round_number == 3L) 6 else 4, h4(t("tier", 3)), numericInput("n3", t("tier_patients", 3), field_value("n3"), min = 0, step = 1), numericInput("p3", t("tier_price", 3), field_value("p3"), min = 0, step = 1000))
         ),
         if (can_submit) actionButton("submit_agreement", t("submit_agreement"), class = "btn-primary"),
-        hr(),
-        h4(t("current_submission")),
-        if (can_submit) tableOutput("current_agreement") else textOutput("private_submission_status")
-      )
+        if (can_submit) tagList(
+          hr(),
+          h4(t("current_submission")),
+          tableOutput("current_agreement")
+        )
+      ),
+      div(class = "student-round-next", actionButton(
+        "student_next_round",
+        if (round_number < length(game_config$rounds)) t("continue_round", round_number + 1L) else t("complete_game"),
+        class = "btn-primary btn-lg"
+      ))
     )
   })
 
   agreement_from_inputs <- function() {
-    state <- current_group_state()
-    round_number <- state$current_round[[1]]
+    round_number <- player$round
     req(round_number >= 1L, round_number <= length(game_config$rounds))
     if (round_number == 3L && !identical(player$role, "HCP")) return(NULL)
     n1 <- if (round_number == 3L) {
@@ -431,9 +491,10 @@ server <- function(input, output, session) {
     }
 
     data.frame(
+      submission_id = new_player_id(),
       tutor = player$tutor, group = player$group, round = as.integer(round_number),
+      role = player$role,
       n1 = patient_numbers[[1]], p1 = prices[[1]], n2 = patient_numbers[[2]], p2 = prices[[2]], n3 = patient_numbers[[3]], p3 = prices[[3]],
-      updated_at = format(Sys.time(), tz = "UTC", usetz = TRUE),
       stringsAsFactors = FALSE
     )
   }
@@ -467,28 +528,25 @@ server <- function(input, output, session) {
   observeEvent(input$confirm_agreement, {
     agreement <- pending_agreement()
     req(!is.null(agreement))
-    store$save_agreement(agreement)
+    receipt <- tryCatch(store$save_agreement(agreement), error = function(error) {
+      showNotification(t("save_failed"), type = "error", duration = NULL)
+      NULL
+    })
+    if (is.null(receipt)) return()
+    agreement$submitted_at <- receipt$submitted_at[[1]]
+    saved <- local_agreements()
+    saved[[as.character(agreement$round[[1]])]] <- agreement
+    local_agreements(saved)
     pending_agreement(NULL)
     removeModal()
-    showNotification(t("agreement_saved"), type = "message")
-  })
-
-  output$private_submission_status <- renderText({
-    req(player$joined)
-    store$data_revision()
-    round_number <- current_group_state()$current_round[[1]]
-    agreements <- store$get_agreements()
-    submitted <- any(agreements$tutor == player$tutor & agreements$group == player$group & agreements$round == round_number)
-    if (submitted) t("agreement_received") else t("no_submission")
+    showNotification(t("agreement_saved", utc_label(receipt$submitted_at[[1]])), type = "message")
   })
 
   output$current_agreement <- renderTable({
     req(player$joined)
-    round_number <- current_group_state()$current_round[[1]]
-    store$data_revision()
-    agreements <- store$get_agreements()
-    agreement <- agreements[agreements$tutor == player$tutor & agreements$group == player$group & agreements$round == round_number, , drop = FALSE]
-    if (nrow(agreement) == 0) return(stats::setNames(data.frame(t("no_submission")), t("status")))
+    round_number <- player$round
+    agreement <- local_agreements()[[as.character(round_number)]]
+    if (is.null(agreement)) return(stats::setNames(data.frame(t("no_local_submission")), t("status")))
     result <- data.frame(
       tier = vapply(1:3, function(index) {
         if (round_number == 3L && index == 1L) t("tier_hospital") else t("tier", index)
@@ -500,16 +558,6 @@ server <- function(input, output, session) {
     names(result) <- c(t("tier_name"), t("patients"), t("price_per_patient"))
     result
   }, striped = TRUE, bordered = FALSE, spacing = "s", digits = 0)
-
-  output$player_results <- renderTable({
-    req(player$joined)
-    results <- live_results()
-    results <- results[results$tutor == player$tutor & results$group == player$group, c("round", "patients_treated", "budget_impact", "hcp_score", "htd_score"), drop = FALSE]
-    if (nrow(results) == 0) return(NULL)
-    names(results) <- c(t("round"), t("patients_treated"), t("budget_impact"), t("hcp_score"), t("htd_score"))
-    results[[t("budget_impact")]] <- vapply(results[[t("budget_impact")]], euro, character(1))
-    results
-  }, striped = TRUE, bordered = FALSE)
 
   output$staff_screen <- renderUI({
     if (!staff_authenticated()) {
@@ -561,6 +609,7 @@ server <- function(input, output, session) {
           p(t("round_controls_intro")),
           selectInput("staff_tutor", t("tutor"), choices = game_config$tutors),
           div(class = "button-row", actionButton("advance_all", t("next_everyone"), class = "btn-primary")),
+          textOutput("last_round_recorded"),
           div(class = "round-reset-row", actionButton("reset_game", t("reset_prototype"), class = "btn-danger"))
         ),
         div(
@@ -605,11 +654,15 @@ server <- function(input, output, session) {
             )
           )
         )
-      ),
-      div(class = "game-card dashboard-card rainbow-frame", h3(t("live_group_status")), tableOutput("state_table")),
-      div(class = "dashboard-grid", div(class = "game-card dashboard-card", h3(t("joined_players")), tableOutput("players_table")), div(class = "game-card dashboard-card agreements-dashboard", h3(t("submitted_agreements")), div(class = "agreements-table-wrap", tableOutput("agreements_table")))),
-      div(class = "game-card dashboard-card", h3(t("calculated_results")), tableOutput("results_table"))
+      )
     )
+  })
+
+  output$last_round_recorded <- renderText({
+    event <- last_round_event()
+    if (is.null(event)) return(t("round_record_note"))
+    stage <- if (event$round[[1]] > length(game_config$rounds)) t("game_end") else paste(t("round"), event$round[[1]])
+    t("round_recorded", event$tutor[[1]], stage, utc_label(event$recorded_at[[1]]))
   })
 
   observeEvent(input$staff_login, {
@@ -623,136 +676,58 @@ server <- function(input, output, session) {
 
   observeEvent(input$create_results_presentation, {
     req(staff_authenticated())
-    if (nrow(store$get_agreements()) == 0) {
-      showNotification(t("no_agreements_presentation"), type = "error"); return()
-    }
-    store$publish_results()
+    record <- tryCatch(store$create_presentation(), error = function(error) {
+      showNotification(t("save_failed"), type = "error", duration = NULL)
+      NULL
+    })
+    if (is.null(record)) return()
     showModal(modalDialog(
       title = t("presentation_created"),
       p(t("presentation_created_text")),
       footer = tagList(
         modalButton(t("close")),
-        tags$a(class = "btn btn-success", href = paste0("?view=results&lang=", language(), "&theme=", theme()), target = "_blank", t("open_results"))
+        tags$a(class = "btn btn-success", href = paste0(
+          "?view=results&token=", record$token[[1]], "&lang=", language(), "&theme=", theme()
+        ), target = "_blank", t("open_results"))
       )
     ))
   })
 
   observeEvent(input$advance_all, {
     req(staff_authenticated())
-    store$advance(
-      selected_tutors(), game_config$groups, 1L,
-      from_rounds = 0L:length(game_config$rounds)
-    )
+    req(input$staff_tutor)
+    showModal(modalDialog(
+      title = t("confirm_round_title"),
+      p(t("confirm_round_text", input$staff_tutor)),
+      footer = tagList(modalButton(t("cancel")), actionButton("confirm_next_round", t("confirm_round"), class = "btn-primary"))
+    ))
+  })
+  observeEvent(input$confirm_next_round, {
+    req(staff_authenticated(), input$staff_tutor)
+    event <- tryCatch(store$record_next_round(input$staff_tutor), error = function(error) {
+      showNotification(t("save_failed"), type = "error", duration = NULL)
+      NULL
+    })
+    removeModal()
+    if (is.null(event)) {
+      showNotification(t("no_more_rounds"), type = "warning")
+      return()
+    }
+    last_round_event(event)
   })
   observeEvent(input$reset_game, {
     req(staff_authenticated())
     showModal(modalDialog(title = t("reset_title"), t("reset_text"), footer = tagList(modalButton(t("cancel")), actionButton("confirm_reset", t("reset_data"), class = "btn-danger"))))
   })
-  observeEvent(input$confirm_reset, { req(staff_authenticated()); store$reset(); removeModal(); showNotification(t("reset_done"), type = "warning") })
-
-  output$state_table <- renderTable({
+  observeEvent(input$confirm_reset, {
     req(staff_authenticated())
-    store$state_revision(); store$data_revision()
-    state <- store$get_state(); players <- store$get_players(); agreements <- store$get_agreements()
-    state$players <- vapply(seq_len(nrow(state)), function(i) sum(players$tutor == state$tutor[[i]] & players$group == state$group[[i]]), integer(1))
-    state$submitted <- vapply(seq_len(nrow(state)), function(i) {
-      if (state$current_round[[i]] < 1L || state$current_round[[i]] > length(game_config$rounds)) return(FALSE)
-      any(agreements$tutor == state$tutor[[i]] & agreements$group == state$group[[i]] & agreements$round == state$current_round[[i]])
-    }, logical(1))
-    state$submitted <- ifelse(state$submitted, t("yes"), t("no"))
-    state$shown_round <- ifelse(state$status == "Finished", t("finished"), state$current_round)
-    state$status <- ifelse(state$status == "Lobby", t("lobby"), ifelse(state$status == "Finished", t("finished"), t("open")))
-    state <- state[, c("tutor", "group", "shown_round", "status", "players", "submitted")]
-    names(state) <- c(t("tutor"), t("group"), t("round"), t("status"), t("players"), t("current_round_submitted"))
-    state
-  }, striped = TRUE, bordered = FALSE, hover = TRUE)
-
-  output$players_table <- renderTable({
-    req(staff_authenticated()); store$data_revision()
-    players <- store$get_players(); if (nrow(players) == 0) return(NULL)
-    players$role <- vapply(players$role, role_label, character(1))
-    players <- players[, c("tutor", "group", "role", "joined_at")]
-    names(players) <- c(t("tutor"), t("group"), t("role"), t("joined_utc"))
-    players
-  }, striped = TRUE, bordered = FALSE)
-
-  output$agreements_table <- renderTable({
-    req(staff_authenticated()); store$data_revision()
-    agreements <- store$get_agreements(); if (nrow(agreements) == 0) return(NULL)
-    for (column in c("p1", "p2", "p3")) agreements[[column]] <- vapply(agreements[[column]], euro, character(1))
-    agreements <- agreements[, c("tutor", "group", "round", "n1", "p1", "n2", "p2", "n3", "p3", "updated_at")]
-    names(agreements) <- c(
-      t("tutor"), t("group"), t("round"),
-      t("tier_patients", 1), t("tier_price", 1),
-      t("tier_patients", 2), t("tier_price", 2),
-      t("tier_patients", 3), t("tier_price", 3),
-      t("updated_utc")
-    )
-    agreements
-  }, striped = TRUE, bordered = FALSE, digits = 0)
-
-  output$results_table <- renderTable({
-    req(staff_authenticated())
-    results <- live_results(); if (nrow(results) == 0) return(NULL)
-    results$budget_impact <- vapply(results$budget_impact, euro, character(1))
-    results$government_balance <- vapply(results$government_balance, euro, character(1))
-    results$patients_treated <- as.integer(results$patients_treated)
-    results$patients_untreated <- as.integer(results$patients_untreated)
-    results$crowd_out <- round(results$crowd_out, 1)
-    results <- results[, c("tutor", "group", "round", "patients_treated", "patients_untreated", "budget_impact", "government_balance", "crowd_out", "hcp_score", "htd_score")]
-    names(results) <- c(t("tutor"), t("group"), t("round"), t("patients_treated"), t("untreated"), t("budget_impact"), t("hcp_balance"), t("crowding_out"), t("hcp_score"), t("htd_score"))
-    results
-  }, striped = TRUE, bordered = FALSE, digits = 1)
-
-  output$presentation_summary <- renderUI({
-    results <- live_results()
-    possible <- length(game_config$tutors) * length(game_config$groups) * length(game_config$rounds)
-    tagList(p(class = "presentation-lead", t("submitted_of", nrow(results), possible)), p(class = "presentation-timestamp", t("live_as_of", format_live_time(Sys.time(), language()))))
+    tryCatch({
+      store$reset()
+      last_round_event(NULL)
+      removeModal()
+      showNotification(t("reset_done"), type = "warning")
+    }, error = function(error) showNotification(t("save_failed"), type = "error", duration = NULL))
   })
-
-  output$presentation_overspent <- renderTable({
-    results <- live_results(); overspent <- results[results$government_balance < 0, , drop = FALSE]
-    if (nrow(overspent) == 0) return(stats::setNames(data.frame(t("no_overspend")), ""))
-    summary <- stats::aggregate(round ~ tutor + group, data = overspent, FUN = length)
-    names(summary) <- c(t("tutor"), t("group"), t("rounds_over_budget")); summary
-  }, striped = TRUE, bordered = FALSE)
-
-  output$presentation_crowding_out <- renderTable({
-    results <- live_results()
-    if (nrow(results) == 0) return(stats::setNames(data.frame(t("no_crowding")), ""))
-    affected <- results[results$crowd_out < 0, c("tutor", "group", "round", "crowd_out"), drop = FALSE]
-    if (nrow(affected) == 0) return(stats::setNames(data.frame(t("no_crowding")), ""))
-    affected$crowd_out <- round(affected$crowd_out, 1); names(affected) <- c(t("tutor"), t("group"), t("round"), t("qalys_lost")); affected
-  }, striped = TRUE, bordered = FALSE)
-
-  output$presentation_untreated <- renderTable({
-    results <- live_results()
-    if (nrow(results) == 0) return(stats::setNames(data.frame(t("all_treated")), ""))
-    untreated <- results[results$patients_untreated > 0, c("tutor", "group", "round", "patients_untreated"), drop = FALSE]
-    if (nrow(untreated) == 0) return(stats::setNames(data.frame(t("all_treated")), ""))
-    names(untreated) <- c(t("tutor"), t("group"), t("round"), t("untreated")); untreated
-  }, striped = TRUE, bordered = FALSE)
-
-  output$presentation_average_price <- renderTable({
-    results <- live_results(); usable <- results[results$patients_treated > 0, , drop = FALSE]
-    if (nrow(usable) == 0) return(stats::setNames(data.frame(t("no_treated")), ""))
-    usable$average_price <- usable$budget_impact / usable$patients_treated
-    split_prices <- split(usable$average_price, usable$round)
-    summary <- data.frame(round = as.integer(names(split_prices)), mean = vapply(split_prices, mean, numeric(1)), minimum = vapply(split_prices, min, numeric(1)), maximum = vapply(split_prices, max, numeric(1)))
-    for (column in c("mean", "minimum", "maximum")) summary[[column]] <- vapply(summary[[column]], euro, character(1))
-    names(summary) <- c(t("round"), t("mean"), t("minimum"), t("maximum")); summary
-  }, striped = TRUE, bordered = FALSE)
-
-  output$presentation_scores <- renderTable({
-    results <- live_results(); if (nrow(results) == 0) return(stats::setNames(data.frame(t("no_agreements")), ""))
-    scores <- results[, c("tutor", "group", "round", "hcp_score", "htd_score"), drop = FALSE]
-    scores <- scores[order(scores$tutor, scores$group, scores$round), , drop = FALSE]
-    names(scores) <- c(t("tutor"), t("group"), t("round"), t("hcp_points"), t("htd_points")); scores
-  }, striped = TRUE, bordered = FALSE)
-
-  for (output_id in c("presentation_summary", "presentation_overspent", "presentation_crowding_out", "presentation_untreated", "presentation_average_price", "presentation_scores")) {
-    outputOptions(output, output_id, suspendWhenHidden = FALSE)
-  }
 }
 
 shinyApp(ui, server)

@@ -17,33 +17,35 @@ working rules and [`_MAP.md`](_MAP.md) for the architecture and change history.
 
 ## Shiny prototype
 
-The first prototype implements the central classroom interaction:
+The Shiny prototype implements a low-traffic classroom interaction:
 
 - students join by tutor, negotiation group, and HCP/HTD role;
 - staff unlock a protected control area with a PIN;
-- each tutor advances all of their negotiation groups with one forward-only
-  control;
+- students continue to each round themselves after a verbal cue from their
+  tutor; their navigation does not read PostgreSQL;
+- each tutor's forward-only control records a round-start timestamp but does
+  not change student screens;
 - the staff area includes a browser-local stopwatch with start, stop, reset,
   and an optional beep at a chosen elapsed minute;
-- new rounds appear automatically in connected student sessions;
 - confidential information is rendered only for the intended role;
-- one player submits the agreement for a negotiation group and round after a
-  confirmation step;
+- one player submits an agreement for a negotiation group and round after a
+  confirmation step; every submission is retained with a server-side
+  timestamp, and the latest on-time one is scored;
 - Round 3 hospital production is an optional HCP-only decision and is not
   displayed to the HTD role;
-- staff see the roster, progress, agreements, and calculated results live;
-- tutors can open a static introduction deck and create a live closing-results
-  deck from the staff area;
+- the staff area has no live data dashboard or database polling;
+- tutors can open a static introduction deck and create a fixed closing-results
+  snapshot from the staff area;
 - the player and staff views switch instantly between English and Dutch;
 - light and dark modes share one ESHPM-inspired visual system; and
 - presentation links inherit the active language and theme.
 
 Tutor names, group labels, round information, and scenario values are defined
 in [`config.R`](config.R). Without a database connection the app uses an
-in-memory store, so joined players, progress, and submissions disappear when
-the app stops. When `DATABASE_URL` is configured, the PostgreSQL backend in
-[`R/storage.R`](R/storage.R) is selected automatically and provides shared,
-persistent state. The legacy Google Form/Sheet workflow is unchanged.
+in-memory store, so submissions and tutor timestamps disappear when the app
+stops. When `DATABASE_URL` is configured, the PostgreSQL backend in
+[`R/storage.R`](R/storage.R) is selected automatically and persists the
+append-only submission log. The legacy Google Form/Sheet workflow is unchanged.
 
 Run the prototype from the repository root:
 
@@ -57,9 +59,13 @@ warning. Never deploy it with that fallback PIN.
 
 ### Neon PostgreSQL setup
 
-PostgreSQL is the recommended first online backend because every Shiny process
-can read and update the same session state. The database tables are created
-automatically on first connection. Install the two database packages once:
+PostgreSQL is the online backend for durable submissions and tutor timestamps.
+The app makes no database connection on ordinary page loads, joining, student
+round navigation, or timer updates. It creates the new `hta_game_submission_log`,
+`hta_game_round_events`, and `hta_game_presentations` tables lazily on the
+first write. This may make that first write slower; tutors should click the
+round-start control before students submit. Install the two database packages
+once:
 
 ```r
 install.packages(c("DBI", "RPostgres"))
@@ -76,9 +82,9 @@ npx neon@latest env pull --file .Renviron --service postgres
 ```
 
 The resulting `DATABASE_URL` is the pooled URL used for normal app traffic.
-`DATABASE_URL_UNPOOLED` is the direct connection used for automatic table
-setup. No Neon Auth, Data API, Object Storage, Functions, or AI Gateway service
-is needed by this version of the app.
+`DATABASE_URL_UNPOOLED` is the direct connection used for lazy table setup.
+No Neon Auth, Data API, Object Storage, Functions, or AI Gateway service is
+needed by this version of the app.
 
 Set a staff PIN separately and start the app from the repository root:
 
@@ -93,8 +99,9 @@ Set `GAME_STORAGE_MODE=memory` to override the automatic selection for an
 isolated local test. The backend also accepts `PGHOST`, `PGDATABASE`, `PGUSER`,
 `PGPASSWORD`, and optionally `PGPORT`/`PGSSLMODE` instead of `DATABASE_URL`.
 Change `session_id` in `config.R` for a new classroom run; it separates one
-session's state from another. The staff reset removes only the configured
-session's players, agreements, and progress.
+session's submissions and timestamps from another. The staff reset removes
+only the new log, round events, and presentation links for that session. The
+former live-state tables are not migrated or deleted automatically.
 
 Do not commit a connection URL or staff PIN. The local Neon connection does not
 automatically transfer its credentials to Connect Cloud: configure them as
@@ -157,14 +164,17 @@ The Staff area contains two presentation controls:
 - **Open introduction presentation** opens the bundled English or Dutch static
   Reveal.js deck. It is available before anyone joins and does not depend on
   live game data.
-- **Create results presentation** becomes useful after agreements have been
-  submitted. It creates a projector-friendly closing deck directly from the
-  current Shiny results. The deck includes reflection questions, overspending,
-  crowding-out, untreated patients, average prices, and HCP/HTD points.
+- **Create results presentation** writes a snapshot cutoff and gives the tutor
+  a link. Opening the link performs one on-demand batch read of the submission
+  log and tutor round timestamps. The deck includes a timing audit, reflection
+  questions, overspending, crowding-out, untreated patients, average prices,
+  and HCP/HTD points.
 
 The closing deck opens in a new browser tab. Navigate with its buttons, arrow
-keys, Page Up/Page Down, or the space bar. Its result tables update while the
-app is running if agreements are corrected after the deck is created.
+keys, Page Up/Page Down, or the space bar. It is fixed at the cutoff recorded
+when its link was created. To include a later correction, create a new link.
+Opening or reloading a deck link fetches that same cutoff's data once; slide
+navigation makes no database requests.
 
 The editable opening sources are
 [`presentations/before_game.qmd`](presentations/before_game.qmd) and
@@ -188,9 +198,19 @@ The closing deck is part of `app.R`; it does not render or read the legacy
 ### Tutor controls and timer
 
 The round control is intentionally tutor-level: select a tutor and use **Next
-round for all** to move every negotiation group belonging to that tutor from
-the lobby through rounds 1–3 and then to the finished state. Individual groups
-cannot be moved separately, and there is no backward control.
+round for all your groups** to record the start of rounds 1–3, then the game-end
+timestamp. The control does not move any student screen. After the tutor's
+verbal cue, students select **Continue to Round …** in their own browser. There
+is no live round synchronization or backward tutor control. A tutor who
+refreshes the page should coordinate with colleagues before clicking again:
+the next click records that tutor's next unrecorded event in the database.
+
+The timestamp for the next round closes the previous round. Round 3 ends at
+the recorded game-end timestamp, or when a presentation link is created if
+game end was not recorded. The database clock supplies timestamps; the latest
+submission within each round's window is scored. A submitted correction outside
+the window remains in the log but is not scored. Missing round markers are
+flagged in the presentation audit rather than silently treated as verified.
 
 The staff stopwatch runs locally in each tutor's browser and does not write to
 PostgreSQL. **Start timer** begins or pauses elapsed time, while **Reset timer**

@@ -1306,19 +1306,19 @@
   },
   "files": {
     "app.R": {
-      "checksum": "75447b6cf7eff8ca269ac3323db29f0a"
+      "checksum": "9f823a99cf6f5e5a681513e104a0d228"
     },
     "config.R": {
       "checksum": "a5028b20bf1db81b74e1ffc1c65faa87"
     },
     "R/i18n.R": {
-      "checksum": "3439ad90309f18b5b45b36853c76c7b6"
+      "checksum": "6a4796ff0e51231122b92427e7ec417c"
     },
     "R/scoring.R": {
       "checksum": "f39d6bbe317826e56b47bc51ce9954dc"
     },
     "R/storage.R": {
-      "checksum": "8f5191d07d8f45385a2421cd7bd6fbd3"
+      "checksum": "76188679253e9aa74c9dac3fb4976f35"
     },
     "www/app.js": {
       "checksum": "ae63e5eb07f344355b4edfa9e0bc4f1e"
@@ -1339,7 +1339,7 @@
       "checksum": "7671e7fbd101aee71f1f6d4a17967daa"
     },
     "www/styles.css": {
-      "checksum": "aba58462c28d27cec90820b3d21d88d1"
+      "checksum": "d68d50de82279a6395418ff444339bb8"
     }
   },
   "users": null

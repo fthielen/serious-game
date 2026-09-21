@@ -1,6 +1,6 @@
 # Project map and implementation history
 
-Last updated: 2026-09-10
+Last updated: 2026-09-21
 
 This document gives future maintainers and AI agents a compact map of the
 repository, records the work already completed, and separates current behavior
@@ -11,7 +11,8 @@ from proposed future work. For operational rules, read [`AGENTS.md`](AGENTS.md).
 The project began as a Google Form/Sheet workflow and now also contains a Shiny
 prototype. The prototype has memory and PostgreSQL storage implementations and
 is linked to a Neon PostgreSQL project and deployed publicly on Posit Connect
-Cloud. A concurrent classroom rehearsal is still required before live use.
+Cloud. The Shiny source now uses an append-only, write-mostly submission flow;
+the online deployment must be checked against this revision before live use.
 
 ```mermaid
 flowchart TB
@@ -28,9 +29,9 @@ flowchart TB
       APP --> I18N["R/i18n.R"]
       APP --> STORE["R/storage.R"]
       STORE --> MEM["Memory: local tests"]
-      STORE --> PG["PostgreSQL: shared online state"]
+      STORE --> PG["PostgreSQL: submissions, round timestamps, snapshot links"]
       APP --> SCORE["R/scoring.R"]
-      APP --> LIVE["Live results deck"]
+      APP --> LIVE["Fixed, on-demand results deck"]
       F --> INTRO["Static EN/NL opening decks"]
     end
 ```
@@ -42,7 +43,7 @@ flowchart TB
 ├── AGENTS.md                    # Rules for future AI/coding agents
 ├── _MAP.md                      # This architecture and history document
 ├── README.md                    # Human setup and operational guide
-├── app.R                        # Shiny UI, server, staff view, live results deck
+├── app.R                        # Shiny UI, server, staff view, fixed results deck
 ├── config.R                     # Tutors, groups, roles, rounds, scenario values
 ├── calculations.R               # Legacy Google Sheet calculation
 ├── eshpm-logo.png               # User-supplied source logo image
@@ -59,8 +60,8 @@ flowchart TB
 │   ├── app.js                   # Applies language/theme to the document
 │   ├── eshpm-logo.png           # PNG logo served by Shiny
 │   ├── styles.css               # App visual system
-│   ├── presentation.css         # Live closing-deck visual system
-│   ├── presentation.js          # Live closing-deck navigation
+│   ├── presentation.css         # Closing-deck visual system
+│   ├── presentation.js          # Closing-deck navigation
 │   ├── opening-presentation-en.html
 │   └── opening-presentation-nl.html
 ├── presentations/
@@ -85,39 +86,45 @@ flowchart TB
 1. Select language and light/dark theme.
 2. Select tutor, negotiation group, and assigned HCP/HTD role.
 3. Join without entering a name or other personal identifier.
-4. Wait in the lobby until staff advances the group.
+4. Wait for the tutor's verbal cue, then use Continue to open Round 1 locally.
 5. Receive the shared round facts.
 6. Receive confidential news only when it belongs to the selected role.
 7. Enter up to three patient/price tiers. In Round 3, the HCP may separately
    choose optional hospital production; the HTD never sees this control.
-8. Review a confirmation and submit for the complete tutor/group/round; a later
-   submission replaces the earlier one. Round 3 submission is HCP-only.
-9. After the last round, see the group results.
+8. Review a confirmation and submit for the complete tutor/group/round. Every
+   submission is kept; the latest one within the tutor's round window is
+   scored. Round 3 submission is HCP-only.
+9. Continue locally when the tutor announces the next round. At the end, the
+   tutor presents the fixed results snapshot.
 
 ### Facilitator flow
 
 1. Open the Staff view and enter `STAFF_PIN`.
 2. Open the static introduction deck in the active language and theme.
-3. Select a tutor and advance all of that tutor's negotiation groups using the
-   single forward-only round control.
+3. Select a tutor and record the start of each next round using the single
+   forward-only control. The button does not advance student screens.
 4. Start, stop, or reset the browser-local stopwatch and optionally schedule a
    beep at a chosen elapsed minute.
-5. Monitor group status, connected role sessions, submissions, and calculated
-   results.
-6. After checking agreements, publish/open the live results presentation.
-7. Reset prototype state after testing or at the end of a local session.
+5. Give the verbal cue for students to continue on their own screens.
+6. At the end, create a timestamped presentation link and open its fixed
+   results snapshot and timing audit.
+7. Reset the new prototype log after testing, if appropriate.
 
 ### State model
 
-- **Players:** `player_id`, `tutor`, `group`, `role`, `joined_at`.
-- **Group state:** `tutor`, `group`, `current_round`, `status`, `updated_at`.
-- **Agreements:** tutor/group/round, three patient/price pairs, `updated_at`.
-- **Results publication:** one Boolean in the current store.
+- **Student navigation:** tutor/group/role and round exist only in that browser
+  session; no player roster is written.
+- **Submission log:** `session_id`, unique submission ID, tutor/group/role/
+  round, three patient/price pairs, database `submitted_at`.
+- **Tutor events:** `session_id`, tutor, next round number (1–3 or game end 4),
+  database `recorded_at`.
+- **Presentation links:** random token and database `created_at`; each link
+  uses this timestamp as an immutable snapshot cutoff.
 
-The memory store creates every configured tutor/group combination and loses all
-state when the R process stops. The PostgreSQL store creates the same state in
-`hta_game_*` tables, scopes it by `session_id`, and polls revisions so separate
-Shiny processes and browsers see each other's changes.
+The memory store loses its log when the R process stops. The PostgreSQL store
+creates new `hta_game_submission_log`, `hta_game_round_events`, and
+`hta_game_presentations` tables lazily on first write and scopes all rows by
+`session_id`. The old live-state tables remain untouched; there is no polling.
 
 ## 4. Presentation map
 
@@ -131,12 +138,14 @@ Shiny processes and browsers see each other's changes.
 - Current structure: nine slides covering the challenge, roles, agreement
   format, round progression, timing, scoring, confidentiality, and start cue.
 
-### Shiny live closing presentation
+### Shiny fixed closing presentation
 
 - Implemented by `results_presentation_ui()` in `app.R`.
-- Opened using `?view=results&lang=<en|nl>&theme=<light|dark>`.
-- Uses live Shiny results and remains updated while the process is running.
-- Contains reflection prompts, five result views, and a closing discussion.
+- Opened using `?view=results&token=<link-token>&lang=<en|nl>&theme=<light|dark>`.
+- One on-demand batch read selects the latest eligible submission per
+  tutor/group/round using tutor timestamps and the link's creation cutoff.
+- Contains a compact timing audit, reflection prompts, five result views, and
+  a closing discussion. Slide navigation performs no database reads.
 
 ### Legacy closing presentation
 
@@ -309,6 +318,25 @@ Shiny processes and browsers see each other's changes.
 - Kept timer state and audio entirely client-side so the feature adds no
   PostgreSQL traffic and each tutor controls their own clock.
 
+### Phase L — write-mostly classroom flow
+
+- Removed periodic revision polling, server-controlled student rounds, join
+  registration, and the live staff tables from the Shiny prototype.
+- Students now advance locally after a tutor's verbal cue; role-specific
+  confidential copy remains server-rendered for the selected role.
+- Replaced agreement upserts with an append-only submission log and
+  database-assigned timestamps. A repeated submission ID is idempotent.
+- Tutor round clicks record events 1–4 for that tutor only. Event 2/3 closes
+  the prior round; event 4 closes Round 3. Creating a presentation also
+  provides an end cutoff when event 4 was not recorded.
+- Added a random presentation-link token. Creating the link writes its cutoff;
+  opening it reads the log and round events once, calculates a fixed results
+  snapshot, and shows a compact timing audit.
+- New PostgreSQL tables are created lazily on the first write. The previous
+  live-state schema and data are not migrated or deleted.
+- The static opening decks, legacy Form/Sheet workflow, and scoring formula
+  were not changed.
+
 ## 6. Current scoring behavior
 
 The Shiny implementation mirrors the legacy logic:
@@ -337,7 +365,8 @@ No revised scoring formula has been implemented yet.
 
 - R source parsing succeeded.
 - English and Dutch translation key parity was checked.
-- All 24 current automated tests passed.
+- Automated storage and scoring tests cover round events, append-only
+  corrections, timing cutoffs, immutable presentation links, and role limits.
 - `git diff --check` passed after generated-output cleanup.
 - Neon authentication and workspace linking succeeded for the existing
   `production` branch. Pooled and direct connection variables were verified
@@ -349,10 +378,10 @@ No revised scoring formula has been implemented yet.
   - light and dark themes;
   - group-only joining;
   - staff authentication and controls;
-  - round synchronization;
-  - agreement submission;
+  - student-controlled round navigation;
+  - agreement submission and database-style acknowledgement in memory mode;
   - static opening decks;
-  - live results-deck creation and navigation;
+  - fixed results-deck creation, navigation, and timing audit;
   - logo placement and presentation contrast;
   - dark-mode result-table readability.
 - Test state was reset after browser verification.
@@ -369,16 +398,17 @@ No revised scoring formula has been implemented yet.
 
 ### 2. Complete the persistent-storage rehearsal
 
-The PostgreSQL adapter is linked to a managed Neon database. Run all three rounds
-from multiple browser sessions, restart the R process, and confirm state
-persists. Decide retention and deletion policy before storing classroom data.
+Run the new append-only PostgreSQL adapter with a separate test `session_id`
+from multiple browser sessions. Confirm that tutor timestamps, corrections,
+late submissions, links, and results survive an R process restart. Decide
+retention and deletion policy before storing classroom data.
 
 ### 3. Harden the Connect Cloud deployment
 
 - Restrict the Posit GitHub App to the `serious-game` repository.
 - Complete the concurrent-session and reconnect rehearsal against the public
   deployment.
-- Confirm the static opening presentations and live results route at classroom
+- Confirm the static opening presentations and fixed results route at classroom
   projector dimensions.
 - Decide when to disable automatic publishing so the classroom release is
   frozen before a live session.
@@ -387,7 +417,7 @@ persists. Decide retention and deletion policy before storing classroom data.
 
 - Run at least one HCP and one HTD browser in the same group.
 - Run a facilitator browser separately.
-- Exercise all three rounds and agreement replacement.
+- Exercise all three rounds and latest-on-time agreement selection.
 - Confirm confidential information never crosses roles.
 - Verify presentation projection at the classroom resolution.
 - Confirm reset/recovery instructions with tutors.

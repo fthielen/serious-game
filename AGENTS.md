@@ -13,8 +13,9 @@ The repository currently contains two distinct workflows:
 
 1. **Legacy production workflow:** Google Form → Google Sheet →
    `calculations.R` → `presentations/after_game.qmd`.
-2. **Shiny prototype:** `app.R` with replaceable storage, live round control,
-   confidential information, agreement submission, and a live closing deck.
+2. **Shiny prototype:** `app.R` with a write-mostly submission log, local
+   student round navigation, role-specific information, tutor timestamps, and
+   an on-demand fixed closing deck.
 
 Do not silently merge, delete, or redirect one workflow into the other. The
 legacy workflow remains available while the Shiny version is developed.
@@ -34,7 +35,7 @@ Before editing:
 
 | Concern | Source of truth |
 |---|---|
-| Shiny application and live results deck | `app.R` |
+| Shiny application and fixed results deck | `app.R` |
 | Tutors, group labels, roles, scenario values, and confidential news | `config.R` |
 | English and Dutch interface copy | `R/i18n.R` |
 | Shiny scoring implementation | `R/scoring.R` |
@@ -98,8 +99,8 @@ corresponding `.qmd`, R, CSS, or JavaScript source and render again.
 
 - The opening presentation is static and must work before a game begins.
 - Maintain matched English and Dutch opening decks.
-- The Shiny closing deck is generated from current in-memory results and is
-  implemented inside `app.R`; it does not source `calculations.R`.
+- The Shiny closing deck is generated from a single on-demand snapshot in
+  `app.R`; it does not source `calculations.R` or poll for later changes.
 - The legacy closing deck is different: rendering
   `presentations/after_game.qmd` sources `calculations.R`, reads the Google
   Sheet, and recalculates results.
@@ -112,6 +113,9 @@ corresponding `.qmd`, R, CSS, or JavaScript source and render again.
   budget, price, or round constants through the UI.
 - Keep scoring pure and testable in `R/scoring.R`.
 - Keep persistence behind the interface returned by `create_game_store()`.
+- Joining, student round navigation, and the staff timer must not query the
+  database. The tutor round button and student submission are writes; opening
+  a generated results link performs one on-demand batch read.
 - Implemented backends are `memory` and `postgres`. Memory disappears when the
   R process stops; PostgreSQL uses `DATABASE_URL` or standard `PG*` variables.
 - A configured `DATABASE_URL` selects PostgreSQL automatically unless
@@ -127,11 +131,18 @@ corresponding `.qmd`, R, CSS, or JavaScript source and render again.
 - Do not describe the prototype as production-ready until persistent storage,
   deployment configuration, and a non-demo staff PIN are implemented and
   verified.
-- A later submission for the same tutor/group/round replaces the prior one.
+- Keep submissions append-only. The latest submission inside the recorded
+  round window is scored; retain late/early corrections for the timing audit.
+- Tutor events 1–3 mark round starts and close the preceding round; event 4
+  marks game end. A presentation cutoff closes Round 3 if event 4 is absent.
+  Missing earlier markers must be flagged, not silently treated as verified.
+- The new PostgreSQL tables are separate from the previous live-state tables.
+  Do not migrate or delete historical data implicitly.
 - Round 3 tier 1 represents hospital production and is excluded from HTD sales.
 - Staff authentication uses `STAFF_PIN`. The `demo` fallback is local-only and
   must never be used for a public deployment.
-- The presentation route is `?view=results&lang=<en|nl>&theme=<light|dark>`.
+- The presentation route is
+  `?view=results&token=<random-token>&lang=<en|nl>&theme=<light|dark>`.
 - `manifest.json` deliberately deploys only `app.R`, `config.R`, `R/`, and
   `www/`. Never add `.Renviron`, `.env.local`, `.neon`, or legacy workflow files
   to the deployment manifest as a side effect of regeneration.
@@ -209,11 +220,12 @@ Minimum browser checks for material Shiny changes:
 - light and dark modes;
 - tutor/group/role joining without personal identifiers;
 - staff PIN and controls;
-- round advancement and return to player view;
+- student-controlled round progression and return to player view;
+- tutor timestamp writes without automatic student advancement;
 - HCP and HTD confidential-information isolation;
-- agreement submission and replacement;
+- append-only agreement submission, correction, and timing cutoff;
 - static opening-deck language/theme link;
-- live results-deck creation, navigation, tables, logo, and contrast;
+- fixed results-deck creation, timing audit, navigation, tables, logo, and contrast;
 - reset test data before handoff.
 
 ## Documentation expectations

@@ -1,7 +1,21 @@
-empty_players <- function() {
+# The classroom app writes an append-only submission log. The only bulk read
+# happens when a tutor opens a results-presentation URL.
+
+empty_submissions <- function() {
   data.frame(
-    player_id = character(), tutor = character(), group = character(),
-    role = character(), joined_at = character(), stringsAsFactors = FALSE
+    submission_id = character(), tutor = character(), group = character(),
+    role = character(), round = integer(), n1 = numeric(), p1 = numeric(),
+    n2 = numeric(), p2 = numeric(), n3 = numeric(), p3 = numeric(),
+    submitted_at = as.POSIXct(character(), tz = "UTC"),
+    stringsAsFactors = FALSE
+  )
+}
+
+empty_round_events <- function() {
+  data.frame(
+    tutor = character(), round = integer(),
+    recorded_at = as.POSIXct(character(), tz = "UTC"),
+    stringsAsFactors = FALSE
   )
 }
 
@@ -14,79 +28,125 @@ empty_agreements <- function() {
   )
 }
 
-utc_string <- function(value = Sys.time()) format(value, tz = "UTC", usetz = TRUE)
-
-normalise_time_columns <- function(data) {
-  for (column in intersect(c("joined_at", "updated_at"), names(data))) {
-    if (inherits(data[[column]], "POSIXt")) data[[column]] <- utc_string(data[[column]])
-  }
-  data
+new_record_token <- function() {
+  paste(sample(c(letters, LETTERS, 0:9), 32L, replace = TRUE), collapse = "")
 }
 
-create_memory_store <- function(config) {
-  state <- expand.grid(tutor = config$tutors, group = config$groups, stringsAsFactors = FALSE)
-  state$current_round <- 0L
-  state$status <- "Lobby"
-  state$updated_at <- utc_string()
-  players <- empty_players()
-  agreements <- empty_agreements()
-  results_published <- FALSE
-  state_revision <- shiny::reactiveVal(0L)
-  data_revision <- shiny::reactiveVal(0L)
-  touch_state <- function() state_revision(shiny::isolate(state_revision()) + 1L)
-  touch_data <- function() data_revision(shiny::isolate(data_revision()) + 1L)
+utc_time <- function(value) as.POSIXct(value, tz = "UTC")
+utc_label <- function(value) format(utc_time(value), "%Y-%m-%d %H:%M:%S UTC", tz = "UTC")
 
+validate_submission <- function(agreement, config) {
+  stopifnot(
+    nrow(agreement) == 1L,
+    agreement$tutor[[1]] %in% config$tutors,
+    agreement$group[[1]] %in% config$groups,
+    agreement$role[[1]] %in% c("HCP", "HTD"),
+    agreement$round[[1]] %in% seq_along(config$rounds),
+    agreement$round[[1]] != 3L || agreement$role[[1]] == "HCP",
+    nzchar(agreement$submission_id[[1]])
+  )
+  invisible(TRUE)
+}
+
+evaluate_presentation <- function(submissions, events, generated_at, config) {
+  generated_at <- utc_time(generated_at)
+  submissions$submitted_at <- utc_time(submissions$submitted_at)
+  events$recorded_at <- utc_time(events$recorded_at)
+  agreements <- empty_agreements()
+  audit <- expand.grid(
+    tutor = config$tutors, group = config$groups,
+    round = seq_along(config$rounds), stringsAsFactors = FALSE
+  )
+  audit$status <- "missing"
+  audit$start_recorded <- FALSE
+  audit$cutoff_recorded <- FALSE
+  audit$cutoff_at <- as.POSIXct(rep(NA_real_, nrow(audit)), origin = "1970-01-01", tz = "UTC")
+
+  for (index in seq_len(nrow(audit))) {
+    tutor <- audit$tutor[[index]]
+    group <- audit$group[[index]]
+    round_number <- audit$round[[index]]
+    start <- events$recorded_at[events$tutor == tutor & events$round == round_number]
+    end <- events$recorded_at[events$tutor == tutor & events$round == round_number + 1L]
+    cutoff <- if (length(end)) min(generated_at, end[[1]]) else generated_at
+    audit$start_recorded[[index]] <- length(start) > 0L
+    audit$cutoff_recorded[[index]] <- length(end) > 0L || round_number == length(config$rounds)
+    audit$cutoff_at[[index]] <- cutoff
+
+    candidates <- submissions[
+      submissions$tutor == tutor & submissions$group == group &
+        submissions$round == round_number, , drop = FALSE
+    ]
+    if (nrow(candidates) == 0L) next
+    on_time <- candidates$submitted_at <= cutoff
+    if (length(start)) on_time <- on_time & candidates$submitted_at >= start[[1]]
+    if (!any(on_time)) {
+      audit$status[[index]] <- "outside_window"
+      next
+    }
+    candidates <- candidates[on_time, , drop = FALSE]
+    chosen <- candidates[order(candidates$submitted_at, candidates$submission_id, decreasing = TRUE)[[1]], , drop = FALSE]
+    audit$status[[index]] <- if (audit$start_recorded[[index]] && audit$cutoff_recorded[[index]]) {
+      "accepted"
+    } else "marker_unverified"
+    agreements <- rbind(
+      agreements,
+      data.frame(
+        tutor = chosen$tutor, group = chosen$group, round = as.integer(chosen$round),
+        n1 = chosen$n1, p1 = chosen$p1, n2 = chosen$n2, p2 = chosen$p2,
+        n3 = chosen$n3, p3 = chosen$p3,
+        updated_at = utc_label(chosen$submitted_at),
+        stringsAsFactors = FALSE
+      )
+    )
+  }
+  list(agreements = agreements, audit = audit, generated_at = generated_at)
+}
+
+create_memory_store <- function(config, clock = Sys.time) {
+  submissions <- empty_submissions()
+  events <- empty_round_events()
+  presentations <- data.frame(
+    token = character(), created_at = as.POSIXct(character(), tz = "UTC"),
+    stringsAsFactors = FALSE
+  )
   list(
     mode = "memory",
-    state_revision = state_revision,
-    data_revision = data_revision,
-    refresh = function() invisible(FALSE),
-    get_state = function() state,
-    get_players = function() players,
-    get_agreements = function() agreements,
-    is_results_published = function() results_published,
-    register_player = function(player) {
-      existing <- which(players$player_id == player$player_id)
-      if (length(existing) > 0) players[existing[[1]], ] <<- player else players <<- rbind(players, player)
-      touch_data()
-      invisible(player)
-    },
     save_agreement = function(agreement) {
-      existing <- which(
-        agreements$tutor == agreement$tutor & agreements$group == agreement$group &
-          agreements$round == agreement$round
-      )
-      if (length(existing) > 0) agreements[existing[[1]], ] <<- agreement else agreements <<- rbind(agreements, agreement)
-      touch_data()
-      invisible(agreement)
+      validate_submission(agreement, config)
+      existing <- submissions[submissions$submission_id == agreement$submission_id[[1]], , drop = FALSE]
+      if (nrow(existing)) return(existing[1, c("submission_id", "submitted_at"), drop = FALSE])
+      agreement$submitted_at <- utc_time(clock())
+      submissions <<- rbind(submissions, agreement[, names(submissions), drop = FALSE])
+      agreement[, c("submission_id", "submitted_at"), drop = FALSE]
     },
-    advance = function(tutors, groups, direction = 1L, from_rounds = NULL) {
-      selected <- state$tutor %in% tutors & state$group %in% groups
-      if (!is.null(from_rounds)) selected <- selected & state$current_round %in% from_rounds
-      maximum_round <- length(config$rounds)
-      state$current_round[selected] <<- pmax(0L, pmin(maximum_round + 1L, state$current_round[selected] + direction))
-      state$status[selected] <<- ifelse(
-        state$current_round[selected] == 0L, "Lobby",
-        ifelse(state$current_round[selected] > maximum_round, "Finished", "Open")
-      )
-      state$updated_at[selected] <<- utc_string()
-      if (any(selected)) touch_state()
-      invisible(state[selected, , drop = FALSE])
+    record_next_round = function(tutor) {
+      stopifnot(tutor %in% config$tutors)
+      next_round <- 1L + sum(events$tutor == tutor)
+      if (next_round > length(config$rounds) + 1L) return(NULL)
+      event <- data.frame(tutor = tutor, round = next_round, recorded_at = utc_time(clock()))
+      events <<- rbind(events, event)
+      event
     },
-    publish_results = function() {
-      results_published <<- TRUE
-      touch_data()
-      invisible(TRUE)
+    create_presentation = function() {
+      record <- data.frame(token = new_record_token(), created_at = utc_time(clock()))
+      presentations <<- rbind(presentations, record)
+      record
+    },
+    get_presentation = function(token) {
+      record <- presentations[presentations$token == token, , drop = FALSE]
+      if (nrow(record) != 1L) return(NULL)
+      at <- record$created_at[[1]]
+      evaluate_presentation(
+        submissions[submissions$submitted_at <= at, , drop = FALSE],
+        events[events$recorded_at <= at, , drop = FALSE],
+        at, config
+      )
     },
     reset = function() {
-      state$current_round <<- 0L
-      state$status <<- "Lobby"
-      state$updated_at <<- utc_string()
-      players <<- empty_players()
-      agreements <<- empty_agreements()
-      results_published <<- FALSE
-      touch_state()
-      touch_data()
+      submissions <<- empty_submissions()
+      events <<- empty_round_events()
+      presentations <<- presentations[0, , drop = FALSE]
       invisible(TRUE)
     }
   )
@@ -105,8 +165,7 @@ parse_postgres_url <- function(url) {
   )
   query <- parts[[7]]
   if (nzchar(query)) {
-    split_pairs <- strsplit(query, "&", fixed = TRUE)[[1]]
-    pairs <- strsplit(split_pairs, "=", fixed = TRUE)
+    pairs <- strsplit(strsplit(query, "&", fixed = TRUE)[[1]], "=", fixed = TRUE)
     values <- lapply(pairs, function(pair) utils::URLdecode(pair[[min(2L, length(pair))]]))
     names(values) <- vapply(pairs, `[[`, character(1), 1L)
     if (!is.null(values$sslmode)) args$sslmode <- values$sslmode
@@ -135,260 +194,156 @@ create_postgres_store <- function(config) {
     stop("PostgreSQL storage requires the DBI and RPostgres packages.")
   }
   connection_args <- postgres_connection_args("DATABASE_URL")
-  schema_connection_args <- if (nzchar(Sys.getenv("DATABASE_URL_UNPOOLED", unset = ""))) {
+  schema_args <- if (nzchar(Sys.getenv("DATABASE_URL_UNPOOLED", unset = ""))) {
     postgres_connection_args("DATABASE_URL_UNPOOLED", allow_pg_fallback = FALSE)
-  } else {
-    connection_args
-  }
+  } else connection_args
   session_id <- config$session_id
-  state_revision <- shiny::reactiveVal(0L)
-  data_revision <- shiny::reactiveVal(0L)
-  last_refresh_at <- as.POSIXct(NA)
-  connect <- function(args = connection_args) {
-    do.call(DBI::dbConnect, c(list(drv = RPostgres::Postgres()), args))
-  }
-  with_connection_args <- function(args, code) {
+  schema_ready <- FALSE
+  connect <- function(args) do.call(DBI::dbConnect, c(list(drv = RPostgres::Postgres()), args))
+  with_connection <- function(code, args = connection_args) {
     connection <- connect(args)
     on.exit(DBI::dbDisconnect(connection), add = TRUE)
-    force(code)(connection)
+    code(connection)
   }
-  with_connection <- function(code) with_connection_args(connection_args, code)
-  with_schema_connection <- function(code) with_connection_args(schema_connection_args, code)
-  read_revisions <- function(connection) {
-    DBI::dbGetQuery(
-      connection,
-      "SELECT state_revision, data_revision FROM hta_game_sessions WHERE session_id = $1",
-      params = list(session_id)
-    )
+  ensure_schema <- function() {
+    if (schema_ready) return(invisible(TRUE))
+    with_connection(function(connection) {
+      DBI::dbWithTransaction(connection, {
+        DBI::dbGetQuery(connection, "SELECT pg_advisory_xact_lock(721044)")
+        DBI::dbExecute(connection, paste(
+          "CREATE TABLE IF NOT EXISTS hta_game_submission_log (",
+          "session_id TEXT NOT NULL, submission_id TEXT NOT NULL, tutor TEXT NOT NULL,",
+          "group_name TEXT NOT NULL, role TEXT NOT NULL, round_number INTEGER NOT NULL,",
+          "n1 DOUBLE PRECISION NOT NULL, p1 DOUBLE PRECISION NOT NULL,",
+          "n2 DOUBLE PRECISION NOT NULL, p2 DOUBLE PRECISION NOT NULL,",
+          "n3 DOUBLE PRECISION NOT NULL, p3 DOUBLE PRECISION NOT NULL,",
+          "submitted_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),",
+          "PRIMARY KEY (session_id, submission_id))"
+        ))
+        DBI::dbExecute(connection, paste(
+          "CREATE INDEX IF NOT EXISTS hta_game_submission_lookup",
+          "ON hta_game_submission_log (session_id, tutor, group_name, round_number, submitted_at)"
+        ))
+        DBI::dbExecute(connection, paste(
+          "CREATE TABLE IF NOT EXISTS hta_game_round_events (",
+          "session_id TEXT NOT NULL, tutor TEXT NOT NULL, round_number INTEGER NOT NULL,",
+          "recorded_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),",
+          "PRIMARY KEY (session_id, tutor, round_number))"
+        ))
+        DBI::dbExecute(connection, paste(
+          "CREATE TABLE IF NOT EXISTS hta_game_presentations (",
+          "session_id TEXT NOT NULL, token TEXT NOT NULL,",
+          "created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),",
+          "PRIMARY KEY (session_id, token))"
+        ))
+      })
+    }, args = schema_args)
+    schema_ready <<- TRUE
+    invisible(TRUE)
   }
-  bump_revisions <- function(connection, state = FALSE, data = FALSE) {
-    revisions <- DBI::dbGetQuery(
-      connection,
-      paste(
-        "UPDATE hta_game_sessions",
-        "SET state_revision = state_revision + $1, data_revision = data_revision + $2, updated_at = NOW()",
-        "WHERE session_id = $3 RETURNING state_revision, data_revision"
-      ),
-      params = list(as.integer(state), as.integer(data), session_id)
-    )
-    state_revision(as.integer(revisions$state_revision[[1]]))
-    data_revision(as.integer(revisions$data_revision[[1]]))
-  }
-
-  with_schema_connection(function(connection) {
-    DBI::dbWithTransaction(connection, {
-      DBI::dbExecute(connection, paste(
-        "CREATE TABLE IF NOT EXISTS hta_game_sessions (",
-        "session_id TEXT PRIMARY KEY, results_published BOOLEAN NOT NULL DEFAULT FALSE,",
-        "state_revision BIGINT NOT NULL DEFAULT 0, data_revision BIGINT NOT NULL DEFAULT 0,",
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
-      ))
-      DBI::dbExecute(connection, paste(
-        "CREATE TABLE IF NOT EXISTS hta_game_state (",
-        "session_id TEXT NOT NULL REFERENCES hta_game_sessions(session_id) ON DELETE CASCADE,",
-        "tutor TEXT NOT NULL, group_name TEXT NOT NULL, current_round INTEGER NOT NULL DEFAULT 0,",
-        "status TEXT NOT NULL DEFAULT 'Lobby', updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),",
-        "PRIMARY KEY (session_id, tutor, group_name))"
-      ))
-      DBI::dbExecute(connection, paste(
-        "CREATE TABLE IF NOT EXISTS hta_game_players (",
-        "session_id TEXT NOT NULL REFERENCES hta_game_sessions(session_id) ON DELETE CASCADE,",
-        "player_id TEXT NOT NULL, tutor TEXT NOT NULL, group_name TEXT NOT NULL, role TEXT NOT NULL,",
-        "joined_at TIMESTAMPTZ NOT NULL, PRIMARY KEY (session_id, player_id))"
-      ))
-      DBI::dbExecute(connection, paste(
-        "CREATE TABLE IF NOT EXISTS hta_game_agreements (",
-        "session_id TEXT NOT NULL REFERENCES hta_game_sessions(session_id) ON DELETE CASCADE,",
-        "tutor TEXT NOT NULL, group_name TEXT NOT NULL, round_number INTEGER NOT NULL,",
-        "n1 DOUBLE PRECISION NOT NULL, p1 DOUBLE PRECISION NOT NULL,",
-        "n2 DOUBLE PRECISION NOT NULL, p2 DOUBLE PRECISION NOT NULL,",
-        "n3 DOUBLE PRECISION NOT NULL, p3 DOUBLE PRECISION NOT NULL,",
-        "updated_at TIMESTAMPTZ NOT NULL, PRIMARY KEY (session_id, tutor, group_name, round_number))"
-      ))
-    })
-  })
-
-  with_connection(function(connection) {
-    DBI::dbWithTransaction(connection, {
-      DBI::dbExecute(
-        connection,
-        "INSERT INTO hta_game_sessions (session_id) VALUES ($1) ON CONFLICT (session_id) DO NOTHING",
-        params = list(session_id)
-      )
-      for (tutor in config$tutors) for (group in config$groups) {
-        DBI::dbExecute(
-          connection,
-          paste(
-            "INSERT INTO hta_game_state (session_id, tutor, group_name)",
-            "VALUES ($1, $2, $3) ON CONFLICT (session_id, tutor, group_name) DO NOTHING"
-          ),
-          params = list(session_id, tutor, group)
-        )
-      }
-    })
-    revisions <- read_revisions(connection)
-    state_revision(as.integer(revisions$state_revision[[1]]))
-    data_revision(as.integer(revisions$data_revision[[1]]))
-  })
-
   list(
     mode = "postgres",
-    state_revision = state_revision,
-    data_revision = data_revision,
-    refresh = function() {
-      now <- Sys.time()
-      minimum_gap <- max(0.25, config$poll_interval_ms / 1000 * 0.75)
-      if (!is.na(last_refresh_at) && as.numeric(difftime(now, last_refresh_at, units = "secs")) < minimum_gap) {
-        return(invisible(FALSE))
-      }
-      revisions <- with_connection(read_revisions)
-      last_refresh_at <<- now
-      changed <- revisions$state_revision[[1]] != shiny::isolate(state_revision()) ||
-        revisions$data_revision[[1]] != shiny::isolate(data_revision())
-      state_revision(as.integer(revisions$state_revision[[1]]))
-      data_revision(as.integer(revisions$data_revision[[1]]))
-      invisible(changed)
-    },
-    get_state = function() with_connection(function(connection) {
-      result <- DBI::dbGetQuery(
-        connection,
-        paste(
-          "SELECT tutor, group_name AS \"group\", current_round, status, updated_at",
-          "FROM hta_game_state WHERE session_id = $1 ORDER BY tutor, group_name"
-        ),
-        params = list(session_id)
-      )
-      result$current_round <- as.integer(result$current_round)
-      normalise_time_columns(result)
-    }),
-    get_players = function() with_connection(function(connection) {
-      result <- DBI::dbGetQuery(
-        connection,
-        paste(
-          "SELECT player_id, tutor, group_name AS \"group\", role, joined_at",
-          "FROM hta_game_players WHERE session_id = $1 ORDER BY joined_at"
-        ),
-        params = list(session_id)
-      )
-      normalise_time_columns(result)
-    }),
-    get_agreements = function() with_connection(function(connection) {
-      result <- DBI::dbGetQuery(
-        connection,
-        paste(
-          "SELECT tutor, group_name AS \"group\", round_number AS \"round\", n1, p1, n2, p2, n3, p3, updated_at",
-          "FROM hta_game_agreements WHERE session_id = $1 ORDER BY tutor, group_name, round_number"
-        ),
-        params = list(session_id)
-      )
-      result$round <- as.integer(result$round)
-      normalise_time_columns(result)
-    }),
-    is_results_published = function() with_connection(function(connection) {
-      result <- DBI::dbGetQuery(
-        connection,
-        "SELECT results_published FROM hta_game_sessions WHERE session_id = $1",
-        params = list(session_id)
-      )
-      isTRUE(result$results_published[[1]])
-    }),
-    register_player = function(player) with_connection(function(connection) {
-      DBI::dbWithTransaction(connection, {
-        DBI::dbExecute(
+    save_agreement = function(agreement) {
+      validate_submission(agreement, config)
+      ensure_schema()
+      with_connection(function(connection) {
+        DBI::dbGetQuery(
           connection,
           paste(
-            "INSERT INTO hta_game_players (session_id, player_id, tutor, group_name, role, joined_at)",
-            "VALUES ($1, $2, $3, $4, $5, $6)",
-            "ON CONFLICT (session_id, player_id) DO UPDATE SET",
-            "tutor = EXCLUDED.tutor, group_name = EXCLUDED.group_name, role = EXCLUDED.role, joined_at = EXCLUDED.joined_at"
-          ),
-          params = list(session_id, player$player_id[[1]], player$tutor[[1]], player$group[[1]], player$role[[1]], player$joined_at[[1]])
-        )
-        bump_revisions(connection, data = TRUE)
-      })
-      invisible(player)
-    }),
-    save_agreement = function(agreement) with_connection(function(connection) {
-      DBI::dbWithTransaction(connection, {
-        DBI::dbExecute(
-          connection,
-          paste(
-            "INSERT INTO hta_game_agreements",
-            "(session_id, tutor, group_name, round_number, n1, p1, n2, p2, n3, p3, updated_at)",
-            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
-            "ON CONFLICT (session_id, tutor, group_name, round_number) DO UPDATE SET",
-            "n1 = EXCLUDED.n1, p1 = EXCLUDED.p1, n2 = EXCLUDED.n2, p2 = EXCLUDED.p2,",
-            "n3 = EXCLUDED.n3, p3 = EXCLUDED.p3, updated_at = EXCLUDED.updated_at"
+            "INSERT INTO hta_game_submission_log",
+            "(session_id, submission_id, tutor, group_name, role, round_number,",
+            "n1, p1, n2, p2, n3, p3)",
+            "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",
+            "ON CONFLICT (session_id, submission_id) DO UPDATE",
+            "SET submission_id = EXCLUDED.submission_id",
+            "RETURNING submission_id, submitted_at"
           ),
           params = list(
-            session_id, agreement$tutor[[1]], agreement$group[[1]], as.integer(agreement$round[[1]]),
+            session_id, agreement$submission_id[[1]], agreement$tutor[[1]],
+            agreement$group[[1]], agreement$role[[1]], as.integer(agreement$round[[1]]),
             agreement$n1[[1]], agreement$p1[[1]], agreement$n2[[1]], agreement$p2[[1]],
-            agreement$n3[[1]], agreement$p3[[1]], agreement$updated_at[[1]]
+            agreement$n3[[1]], agreement$p3[[1]]
           )
         )
-        bump_revisions(connection, data = TRUE)
       })
-      invisible(agreement)
-    }),
-    advance = function(tutors, groups, direction = 1L, from_rounds = NULL) with_connection(function(connection) {
-      changed <- DBI::dbWithTransaction(connection, {
-        current <- DBI::dbGetQuery(
+    },
+    record_next_round = function(tutor) {
+      stopifnot(tutor %in% config$tutors)
+      ensure_schema()
+      with_connection(function(connection) {
+        result <- DBI::dbGetQuery(
           connection,
-          "SELECT tutor, group_name, current_round FROM hta_game_state WHERE session_id = $1",
-          params = list(session_id)
+          paste(
+            "INSERT INTO hta_game_round_events (session_id, tutor, round_number)",
+            "SELECT $1, $2, COALESCE(MAX(round_number), 0) + 1",
+            "FROM hta_game_round_events WHERE session_id = $1 AND tutor = $2",
+            "HAVING COALESCE(MAX(round_number), 0) < $3",
+            "ON CONFLICT DO NOTHING RETURNING tutor, round_number AS round, recorded_at"
+          ),
+          params = list(session_id, tutor, length(config$rounds) + 1L)
         )
-        selected <- current$tutor %in% tutors & current$group_name %in% groups
-        if (!is.null(from_rounds)) selected <- selected & current$current_round %in% from_rounds
-        current <- current[selected, , drop = FALSE]
-        maximum_round <- length(config$rounds)
-        if (nrow(current) > 0) {
-          for (index in seq_len(nrow(current))) {
-            next_round <- max(0L, min(maximum_round + 1L, as.integer(current$current_round[[index]]) + direction))
-            next_status <- if (next_round == 0L) "Lobby" else if (next_round > maximum_round) "Finished" else "Open"
-            DBI::dbExecute(
-              connection,
-              paste(
-                "UPDATE hta_game_state SET current_round = $1, status = $2, updated_at = NOW()",
-                "WHERE session_id = $3 AND tutor = $4 AND group_name = $5"
-              ),
-              params = list(next_round, next_status, session_id, current$tutor[[index]], current$group_name[[index]])
-            )
-          }
-          bump_revisions(connection, state = TRUE)
-        }
-        current
+        if (!nrow(result)) return(NULL)
+        result$round <- as.integer(result$round)
+        result
       })
-      invisible(changed)
-    }),
-    publish_results = function() with_connection(function(connection) {
-      DBI::dbWithTransaction(connection, {
-        DBI::dbExecute(
+    },
+    create_presentation = function() {
+      ensure_schema()
+      with_connection(function(connection) {
+        DBI::dbGetQuery(
           connection,
-          "UPDATE hta_game_sessions SET results_published = TRUE WHERE session_id = $1",
-          params = list(session_id)
+          paste(
+            "INSERT INTO hta_game_presentations (session_id, token)",
+            "VALUES ($1, $2) RETURNING token, created_at"
+          ),
+          params = list(session_id, new_record_token())
         )
-        bump_revisions(connection, data = TRUE)
+      })
+    },
+    get_presentation = function(token) {
+      if (!is.character(token) || length(token) != 1L || !grepl("^[A-Za-z0-9]{32}$", token)) return(NULL)
+      with_connection(function(connection) {
+        DBI::dbWithTransaction(connection, {
+          record <- DBI::dbGetQuery(
+            connection,
+            "SELECT created_at FROM hta_game_presentations WHERE session_id = $1 AND token = $2",
+            params = list(session_id, token)
+          )
+          if (nrow(record) != 1L) return(NULL)
+          at <- record$created_at[[1]]
+          submissions <- DBI::dbGetQuery(
+            connection,
+            paste(
+              "SELECT submission_id, tutor, group_name AS \"group\", role,",
+              "round_number AS \"round\", n1, p1, n2, p2, n3, p3, submitted_at",
+              "FROM hta_game_submission_log",
+              "WHERE session_id = $1 AND submitted_at <= $2"
+            ),
+            params = list(session_id, at)
+          )
+          events <- DBI::dbGetQuery(
+            connection,
+            paste(
+              "SELECT tutor, round_number AS \"round\", recorded_at",
+              "FROM hta_game_round_events WHERE session_id = $1 AND recorded_at <= $2"
+            ),
+            params = list(session_id, at)
+          )
+          evaluate_presentation(submissions, events, at, config)
+        })
+      })
+    },
+    reset = function() {
+      ensure_schema()
+      with_connection(function(connection) {
+        DBI::dbWithTransaction(connection, {
+          DBI::dbExecute(connection, "DELETE FROM hta_game_submission_log WHERE session_id = $1", params = list(session_id))
+          DBI::dbExecute(connection, "DELETE FROM hta_game_round_events WHERE session_id = $1", params = list(session_id))
+          DBI::dbExecute(connection, "DELETE FROM hta_game_presentations WHERE session_id = $1", params = list(session_id))
+        })
       })
       invisible(TRUE)
-    }),
-    reset = function() with_connection(function(connection) {
-      DBI::dbWithTransaction(connection, {
-        DBI::dbExecute(connection, "DELETE FROM hta_game_players WHERE session_id = $1", params = list(session_id))
-        DBI::dbExecute(connection, "DELETE FROM hta_game_agreements WHERE session_id = $1", params = list(session_id))
-        DBI::dbExecute(
-          connection,
-          "UPDATE hta_game_state SET current_round = 0, status = 'Lobby', updated_at = NOW() WHERE session_id = $1",
-          params = list(session_id)
-        )
-        DBI::dbExecute(
-          connection,
-          "UPDATE hta_game_sessions SET results_published = FALSE WHERE session_id = $1",
-          params = list(session_id)
-        )
-        bump_revisions(connection, state = TRUE, data = TRUE)
-      })
-      invisible(TRUE)
-    })
+    }
   )
 }
 
