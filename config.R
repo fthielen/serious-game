@@ -7,7 +7,7 @@
 game_config <- list(
   session_id = "hta-demo",
   session_title = list(en = "HTA negotiation game", nl = "HTA-onderhandelingsspel"),
-  tutors = c("Tutor 1", "Tutor 2"),
+  tutors = c("Group: Nicolas", "Group: Stijn"),
   groups = c("A", "B", "C", "D"),
   roles = list(
     en = c(HCP = "Healthcare Payer (HCP)", HTD = "Health Technology Developer (HTD)"),

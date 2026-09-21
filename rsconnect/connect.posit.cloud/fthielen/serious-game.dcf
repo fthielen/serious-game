@@ -1,0 +1,12 @@
+name: serious-game
+title: serious-game
+username: fthielen
+account: fthielen
+server: connect.posit.cloud
+hostUrl: https://api.connect.posit.cloud/v1
+appId: 01a0c416-7e7f-2f56-b6b3-bfdb70cd01c9
+bundleId:
+url: https://connect.posit.cloud/fthielen/content/01a0c416-7e7f-2f56-b6b3-bfdb70cd01c9
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
