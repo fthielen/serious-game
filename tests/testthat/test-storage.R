@@ -43,6 +43,29 @@ test_that("tutor round markers are forward-only and scoped to one tutor", {
   expect_equal(store$record_next_round(second)$round, 1L)
 })
 
+test_that("starting a new tutor game clears only that tutor and begins round one", {
+  tick <- local({
+    now <- as.POSIXct("2026-09-21 09:00:00", tz = "UTC")
+    function() { now <<- now + 60; now }
+  })
+  store <- create_memory_store(game_config, clock = tick)
+  first <- game_config$tutors[[1]]
+  second <- game_config$tutors[[2]]
+  store$record_next_round(first)
+  store$record_next_round(second)
+  store$save_agreement(test_submission(tutor = first, id = "old-first"))
+  store$save_agreement(test_submission(tutor = second, id = "other-tutor"))
+  old_link <- store$create_presentation()
+  event <- store$start_new_game(first)
+  expect_equal(event$round, 1L)
+  expect_null(store$get_presentation(old_link$token))
+  expect_equal(store$record_next_round(first)$round, 2L)
+  fresh_link <- store$create_presentation()
+  snapshot <- store$get_presentation(fresh_link$token)
+  expect_false(any(snapshot$agreements$tutor == first))
+  expect_true(any(snapshot$agreements$tutor == second))
+})
+
 test_that("rapid tutor clicks can record separate rounds at the same instant", {
   instant <- as.POSIXct("2026-09-21 09:00:00", tz = "UTC")
   store <- create_memory_store(game_config, clock = function() instant)

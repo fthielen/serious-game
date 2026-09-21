@@ -40,6 +40,7 @@ Before editing:
 | English and Dutch interface copy | `R/i18n.R` |
 | Shiny scoring implementation | `R/scoring.R` |
 | Shiny state/storage contract | `R/storage.R` |
+| Developer database inspection, export, and guarded reset | `scripts/game_db_admin.R` |
 | Connect Cloud deployment dependencies and file allowlist | `manifest.json` |
 | App styling | `www/styles.css` |
 | Live results-deck styling and controls | `www/presentation.css`, `www/presentation.js` |
@@ -130,11 +131,19 @@ corresponding `.qmd`, R, CSS, or JavaScript source and render again.
   deployment artifacts intended for version control.
 - `session_id` scopes all PostgreSQL rows. Change it deliberately for a new
   classroom run and do not reuse another active class's identifier.
+- Data does not reset automatically. Staff **Start new game** deletes only the
+  selected tutor's current-session submissions and timestamps, records Round 1,
+  and revokes session-wide presentation links. Never use it on live student
+  work without intending to discard that tutor's data.
+- The developer script can inspect, export, and reset one session or all three
+  app-owned tables. Never run a reset as part of tests or deployment; export
+  first and verify the target database. It is not a whole-Neon-project reset.
 - Do not describe the prototype as production-ready until persistent storage,
   deployment configuration, and a non-demo staff PIN are implemented and
   verified.
-- Keep submissions append-only. The latest submission inside the recorded
-  round window is scored; retain late/early corrections for the timing audit.
+- Keep submissions append-only within a game. The latest submission inside the
+  recorded round window is scored; retain late/early corrections for the timing
+  audit. Explicit new-game and developer resets are destructive exceptions.
 - Tutor events 1–3 mark round starts and close the preceding round; event 4
   marks game end. A presentation cutoff closes Round 3 if event 4 is absent.
   Missing earlier markers must be flagged, not silently treated as verified.

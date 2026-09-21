@@ -51,6 +51,8 @@ flowchart TB
 │   ├── i18n.R                  # English and Dutch interface translations
 │   ├── scoring.R               # Pure scoring functions for Shiny
 │   └── storage.R               # Store contract, memory, and PostgreSQL backends
+├── scripts/
+│   └── game_db_admin.R         # Inspect, export, or guarded reset of game tables
 ├── tests/
 │   ├── testthat.R
 │   └── testthat/
@@ -101,14 +103,17 @@ flowchart TB
 
 1. Open the Staff view and enter `STAFF_PIN`.
 2. Open the static introduction deck in the active language and theme.
-3. Select a tutor and record the start of each next round using the single
-   forward-only control. The button does not advance student screens.
+3. Before a new class, select a tutor and confirm **Start new game**. This
+   clears only that tutor's prior current-session data and records Round 1.
+   Then record later rounds with the forward-only control; neither button
+   advances student screens already open in other browsers.
 4. Start, stop, or reset the browser-local stopwatch and optionally schedule a
    beep at a chosen elapsed minute.
 5. Give the verbal cue for students to continue on their own screens.
 6. At the end, create a timestamped presentation link and open its fixed
    results snapshot and timing audit.
-7. Reset the new prototype log after testing, if appropriate.
+7. For developer-level inspection, export, or broader resets, use the separate
+   guarded database script; do not reset live student work accidentally.
 
 ### State model
 
@@ -119,7 +124,8 @@ flowchart TB
 - **Tutor events:** `session_id`, tutor, next round number (1–3 or game end 4),
   database `recorded_at`.
 - **Presentation links:** random token and database `created_at`; each link
-  uses this timestamp as an immutable snapshot cutoff.
+  uses this timestamp as a fixed cutoff. A tutor or session reset revokes old
+  links, because they otherwise could show changed results.
 
 The memory store loses its log when the R process stops. The PostgreSQL store
 creates new `hta_game_submission_log`, `hta_game_round_events`, and
@@ -349,6 +355,19 @@ creates new `hta_game_submission_log`, `hta_game_round_events`, and
   selection, but a pooled-only Neon configuration now fails clearly.
 - Left the submission log, timing rules, scoring, and existing classroom data
   unchanged.
+
+### Phase N — explicit tutor game start and developer data controls
+
+- Confirmed that no automatic reset occurs: prior tutor round markers persist
+  across browser sessions and deployments within the same `session_id`.
+- Added a confirmed **Start new game** action for the selected tutor. It
+  atomically deletes that tutor's submissions and round markers, revokes
+  session-wide results links, and records Round 1. Other tutors' game rows
+  remain intact; already-open player browsers must reload and rejoin.
+- Removed the broad session reset button from the staff interface. Added a
+  separate developer script for read-only status, CSV export, and guarded
+  session-wide or all-game-table resets with backup-first behavior. No live
+  database reset was performed during this change.
 
 ## 6. Current scoring behavior
 

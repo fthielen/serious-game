@@ -23,8 +23,9 @@ The Shiny prototype implements a low-traffic classroom interaction:
 - staff unlock a protected control area with a PIN;
 - students continue to each round themselves after a verbal cue from their
   tutor; their navigation does not read PostgreSQL;
-- each tutor's forward-only control records a round-start timestamp but does
-  not change student screens;
+- staff explicitly start a fresh game for the selected tutor, clearing that
+  tutor's prior data and recording Round 1's start time; the forward-only
+  control then records later round timestamps without changing student screens;
 - the staff area includes a browser-local stopwatch with start, stop, reset,
   and an optional beep at a chosen elapsed minute;
 - confidential information is rendered only for the intended role;
@@ -103,10 +104,46 @@ shiny::runApp()
 Set `GAME_STORAGE_MODE=memory` to override the automatic selection for an
 isolated local test. The backend also accepts `PGHOST`, `PGDATABASE`, `PGUSER`,
 `PGPASSWORD`, and optionally `PGPORT`/`PGSSLMODE` instead of `DATABASE_URL`.
-Change `session_id` in `config.R` for a new classroom run; it separates one
-session's submissions and timestamps from another. The staff reset removes
-only the new log, round events, and presentation links for that session. The
+The game does **not** reset automatically. Before each new class, staff select
+their tutor and click **Start new game for this tutor**. After confirmation,
+this deletes that tutor's submissions and round timestamps in the configured
+`session_id`, records the start of Round 1, and revokes older results links
+(which include data from all tutors). Other tutors' submissions and timestamps
+remain. Players should reload and join again; browsers already in a round are
+not moved or cleared remotely. Use the next-round button for Round 2, Round 3,
+and game end. Do not start a new game after students begin submitting unless
+you intentionally want to discard that tutor's current data.
+
+Change `session_id` in `config.R` when you need separate historical classroom
+runs; it separates one session's submissions and timestamps from another. The
 former live-state tables are not migrated or deleted automatically.
+
+### Developer database access and backups
+
+With the same `DATABASE_URL_UNPOOLED` (or direct `DATABASE_URL`) used by the
+app, run this separate script from the repository root. It does not start
+Shiny or modify the legacy Google Sheet:
+
+```sh
+Rscript scripts/game_db_admin.R status
+Rscript scripts/game_db_admin.R export hta-demo /absolute/path/to/new-backup-folder
+```
+
+`status` lists row counts by session and tutor. `export` writes all three game
+tables as CSV, including full submissions. Choose an export location outside
+the repository and keep it private. To delete data, first stop classroom play;
+the reset commands create a new CSV backup directory **before** deleting rows:
+
+```sh
+Rscript scripts/game_db_admin.R reset-session hta-demo /absolute/path/to/new-backup-folder CONFIRM:hta-demo
+Rscript scripts/game_db_admin.R reset-all /absolute/path/to/new-backup-folder CONFIRM:ALL-GAME-DATA
+```
+
+`reset-session` affects every tutor in one session. `reset-all` affects all
+sessions in the three `hta_game_*` tables, but does not drop the tables or
+touch any other tables in Neon. Both invalidate affected results links. These
+commands are never run automatically. The app's staff button is narrower:
+it resets only the selected tutor (and revokes results links).
 
 Do not commit a connection URL or staff PIN. The local Neon connection does not
 automatically transfer its credentials to Connect Cloud: configure them as
@@ -137,7 +174,8 @@ To publish:
    URL selects PostgreSQL automatically.
 4. Publish and open the generated public URL.
 5. Before classroom use, rehearse with separate HCP, HTD, and facilitator
-   browsers, then reset the configured session from the staff area.
+   browsers. Then use **Start new game for this tutor** for each tutor that
+   took part in testing, before players join the real session.
 
 Connect Cloud currently supports R through 4.6.0, so the manifest is pinned to
 that version even when generated locally with a newer patch release. If the

@@ -246,6 +246,7 @@ server <- function(input, output, session) {
   pending_agreement <- reactiveVal(NULL)
   local_agreements <- reactiveVal(list())
   last_round_event <- reactiveVal(NULL)
+  pending_new_game_tutor <- reactiveVal(NULL)
 
   observeEvent(session$clientData$url_search, {
     query <- shiny::parseQueryString(session$clientData$url_search %||% "")
@@ -608,9 +609,10 @@ server <- function(input, output, session) {
           h3(t("round_controls")),
           p(t("round_controls_intro")),
           selectInput("staff_tutor", t("tutor"), choices = game_config$tutors),
-          div(class = "button-row", actionButton("advance_all", t("next_everyone"), class = "btn-primary")),
-          textOutput("last_round_recorded"),
-          div(class = "round-reset-row", actionButton("reset_game", t("reset_prototype"), class = "btn-danger"))
+          div(class = "button-row",
+              actionButton("start_new_game", t("start_new_game"), class = "btn-default"),
+              actionButton("advance_all", t("next_everyone"), class = "btn-primary")),
+          textOutput("last_round_recorded")
         ),
         div(
           class = "game-card timer-card rainbow-frame",
@@ -716,17 +718,24 @@ server <- function(input, output, session) {
     }
     last_round_event(event)
   })
-  observeEvent(input$reset_game, {
-    req(staff_authenticated())
-    showModal(modalDialog(title = t("reset_title"), t("reset_text"), footer = tagList(modalButton(t("cancel")), actionButton("confirm_reset", t("reset_data"), class = "btn-danger"))))
+  observeEvent(input$start_new_game, {
+    req(staff_authenticated(), input$staff_tutor)
+    pending_new_game_tutor(input$staff_tutor)
+    showModal(modalDialog(
+      title = t("start_new_game_title"),
+      p(t("start_new_game_text", input$staff_tutor)),
+      footer = tagList(modalButton(t("cancel")), actionButton("confirm_start_new_game", t("confirm_start_new_game"), class = "btn-danger"))
+    ))
   })
-  observeEvent(input$confirm_reset, {
-    req(staff_authenticated())
+  observeEvent(input$confirm_start_new_game, {
+    req(staff_authenticated(), pending_new_game_tutor())
+    tutor <- pending_new_game_tutor()
     tryCatch({
-      store$reset()
-      last_round_event(NULL)
+      event <- store$start_new_game(tutor)
+      pending_new_game_tutor(NULL)
+      last_round_event(event)
       removeModal()
-      showNotification(t("reset_done"), type = "warning")
+      showNotification(t("new_game_started", tutor), type = "message")
     }, error = function(error) showNotification(t("save_failed"), type = "error", duration = 8))
   })
 }

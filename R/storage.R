@@ -128,6 +128,16 @@ create_memory_store <- function(config, clock = Sys.time) {
       events <<- rbind(events, event)
       event
     },
+    start_new_game = function(tutor) {
+      stopifnot(tutor %in% config$tutors)
+      submissions <<- submissions[submissions$tutor != tutor, , drop = FALSE]
+      events <<- events[events$tutor != tutor, , drop = FALSE]
+      # Existing result links include this tutor and must not silently change.
+      presentations <<- presentations[0, , drop = FALSE]
+      event <- data.frame(tutor = tutor, round = 1L, recorded_at = utc_time(clock()))
+      events <<- rbind(events, event)
+      event
+    },
     create_presentation = function() {
       record <- data.frame(token = new_record_token(), created_at = utc_time(clock()))
       presentations <<- rbind(presentations, record)
@@ -300,6 +310,23 @@ create_postgres_store <- function(config) {
         if (!nrow(result)) return(NULL)
         result$round <- as.integer(result$round)
         result
+      })
+    },
+    start_new_game = function(tutor) {
+      stopifnot(tutor %in% config$tutors)
+      ensure_schema()
+      with_connection(function(connection) {
+        DBI::dbWithTransaction(connection, {
+          DBI::dbExecute(connection, "DELETE FROM hta_game_submission_log WHERE session_id = $1 AND tutor = $2", params = list(session_id, tutor))
+          DBI::dbExecute(connection, "DELETE FROM hta_game_round_events WHERE session_id = $1 AND tutor = $2", params = list(session_id, tutor))
+          # A results link spans all tutors, so revoke old links after a reset.
+          DBI::dbExecute(connection, "DELETE FROM hta_game_presentations WHERE session_id = $1", params = list(session_id))
+          DBI::dbGetQuery(
+            connection,
+            "INSERT INTO hta_game_round_events (session_id, tutor, round_number) VALUES ($1, $2, 1) RETURNING tutor, round_number AS round, recorded_at",
+            params = list(session_id, tutor)
+          )
+        })
       })
     },
     create_presentation = function() {
